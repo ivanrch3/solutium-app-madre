@@ -8,7 +8,14 @@ const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
+
+  // Validation of critical environment variables
+  if (process.env.NODE_ENV === "production") {
+    if (!process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY) {
+      console.warn("⚠️ WARNING: Supabase environment variables are missing!");
+    }
+  }
 
   app.use(cors());
 
