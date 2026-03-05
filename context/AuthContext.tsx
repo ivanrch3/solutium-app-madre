@@ -90,6 +90,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const checkSession = useCallback(async () => {
+    setIsLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session?.user) {
+      // Fetch profile from Supabase
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      
+      if (profile) {
+        // Fetch projects for this user
+        const { data: projectsData } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('owner_id', session.user.id);
+        
+        const mappedProjects: Project[] = (projectsData || []).map(p => ({
+          id: p.id,
+          name: p.name,
+          brandColors: p.brand_colors,
+          logoUrl: p.logo_url,
+          contactInfo: p.contact_info,
+          socials: [],
+          installedAppIds: [],
+          assignedMemberIds: [],
+          createdAt: new Date(p.created_at).getTime(),
+          products: []
+        }));
+
+        const fullUser: UserProfile = {
+          id: session.user.id,
+          name: profile.full_name || session.user.email?.split('@')[0] || 'Usuario',
+          email: session.user.email || '',
+          role: profile.role || (session.user.email === 'admin@solutium.app' ? 'admin' : 'user'),
+          language: profile.language || 'es',
+          subscriptionPlan: profile.subscription_tier || 'free',
+          projects: mappedProjects,
+          teamMembers: [],
+          onboardingCompleted: true,
+          uiStyle: 'windows',
+          fontFamily: 'Inter',
+          baseSize: '16px',
+          borderRadius: '0.5rem',
+          themePreference: 'default',
+          activeTheme: 'fluent-light',
+        };
+
+        setUser(fullUser);
+        if (fullUser.language) setLanguageState(fullUser.language as Language);
+        
+        if (mappedProjects.length > 0) {
+          const lastProjectId = storageService.getLastProjectId();
+          const projectToLoad = mappedProjects.find(p => p.id === lastProjectId) || mappedProjects[0];
+          setCurrentProject(projectToLoad);
+        }
+      }
+    } else {
+      // Fallback to local storage for demo/guest
+      const existingUser = storageService.getUser();
+      if (existingUser) {
+        setUser(existingUser);
+        if (existingUser.language) setLanguageState(existingUser.language);
+        if (existingUser.projects && existingUser.projects.length > 0) {
+          const lastProjectId = storageService.getLastProjectId();
+          const projectToLoad = existingUser.projects.find((p: Project) => p.id === lastProjectId) || existingUser.projects[0];
+          setCurrentProject(projectToLoad);
+        }
+      }
+    }
+    setIsLoading(false);
+  }, []);
+
   useEffect(() => {
     const loadAdminData = () => {
       const db = storageService.getUsersDb();
@@ -102,42 +177,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     loadAdminData();
     refreshApps();
-
-    // Check Supabase Session
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        // TODO: Fetch full profile from Supabase DB
-        // For now, fallback to local storage logic if Supabase profile not fully implemented
-        console.log('Supabase Session Found:', session.user.email);
-      }
-
-      const existingUser = storageService.getUser();
-      if (existingUser) {
-        setUser(existingUser);
-        if (existingUser.language) setLanguageState(existingUser.language);
-        
-        // Auto-select first project or last active project
-        if (existingUser.projects && existingUser.projects.length > 0) {
-            const lastProjectId = storageService.getLastProjectId();
-            const projectToLoad = existingUser.projects.find((p: Project) => p.id === lastProjectId) || existingUser.projects[0];
-            setCurrentProject(projectToLoad);
-        }
-      }
-      setIsLoading(false);
-    };
-
     checkSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-       if (session?.user) {
-           // Handle auth state change
+       if (session) {
+           checkSession();
+       } else {
+           setUser(null);
+           setCurrentProject(null);
        }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [checkSession, refreshApps]);
 
   const updateProfile = useCallback((data: Partial<UserProfile>) => {
     setUser(prev => {
@@ -154,73 +206,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateProfile({ language: lang });
   }, [updateProfile]);
 
-  const login = useCallback(async (email: string, name:string) => {
-    const isExample = email === '';
-    const finalEmail = isExample ? 'ejemplo@solutium.app' : email;
-    const finalName = isExample ? 'Usuario de Ejemplo' : name;
+  const login = useCallback(async (email: string, password?: string) => {
+    setIsLoading(true);
+    try {
+      if (password) {
+        // Real Supabase Login
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      } else {
+        // Legacy/Mock Login for dev
+        const isExample = email === '';
+        const finalEmail = isExample ? 'ejemplo@solutium.app' : email;
+        const finalName = isExample ? 'Usuario de Ejemplo' : email.split('@')[0];
 
-    const existingUser = getUserFromDb(finalEmail);
-    
-    if (existingUser) {
-        setUser(existingUser);
-        const lastProjectId = storageService.getLastProjectId();
-        const projectToLoad = existingUser.projects.find(p => p.id === lastProjectId) || existingUser.projects[0];
-        if (projectToLoad) {
-            setCurrentProject(projectToLoad);
+        const existingUser = getUserFromDb(finalEmail);
+        
+        if (existingUser) {
+            setUser(existingUser);
+            const lastProjectId = storageService.getLastProjectId();
+            const projectToLoad = existingUser.projects.find(p => p.id === lastProjectId) || existingUser.projects[0];
+            if (projectToLoad) {
+                setCurrentProject(projectToLoad);
+            }
+            storageService.setUser(existingUser);
+            setIsLoading(false);
+            return;
         }
-        storageService.setUser(existingUser);
-        return;
+
+        const role = finalEmail === 'admin@solutium.app' ? 'admin' : 'user';
+        const newUser: UserProfile = {
+          id: crypto.randomUUID(),
+          name: finalName,
+          email: finalEmail,
+          role: role,
+          language: language,
+          subscriptionPlan: role === 'admin' ? 'enterprise' : 'free',
+          projects: [], 
+          teamMembers: [],
+          onboardingCompleted: true,
+          uiStyle: 'windows',
+          fontFamily: 'Inter',
+          baseSize: '16px',
+          borderRadius: '0.5rem',
+          themePreference: 'default',
+          activeTheme: 'fluent-light',
+        };
+        
+        setUser(newUser);
+        storageService.setUser(newUser);
+        saveUserToDb(newUser);
+      }
+    } catch (error: any) {
+      showNotification(error.message || 'Error al iniciar sesión', 'error');
+    } finally {
+      setIsLoading(false);
     }
-
-    const storedUser = storageService.getUser();
-    if (storedUser && storedUser.email === finalEmail) {
-        setUser(storedUser);
-        return;
-    }
-
-    const role = finalEmail === 'admin@solutium.app' ? 'admin' : 'user';
-
-    const defaultProjects: Project[] = role === 'admin' ? [{
-        id: 'admin-hq',
-        name: 'App Maestra',
-        brandColors: [
-            SOLUTIUM_COLORS.green, 
-            SOLUTIUM_COLORS.violet, 
-            SOLUTIUM_COLORS.blue, 
-            SOLUTIUM_COLORS.deepGray, 
-            SOLUTIUM_COLORS.darkGray, 
-            SOLUTIUM_COLORS.lightGray
-        ],
-        socials: [],
-        installedAppIds: ['invoicer'],
-        assignedMemberIds: [],
-        createdAt: Date.now(),
-        products: []
-    }] : [];
-
-    const newUser: UserProfile = {
-      id: crypto.randomUUID(),
-      name: finalName,
-      email: finalEmail,
-      role: role,
-      language: language,
-      subscriptionPlan: role === 'admin' ? 'enterprise' : 'free',
-      projects: defaultProjects, 
-      teamMembers: [],
-      onboardingCompleted: true,
-      uiStyle: 'windows',
-      fontFamily: 'Inter',
-      baseSize: '16px',
-      borderRadius: '0.5rem',
-      themePreference: 'default',
-      activeTheme: 'fluent-light',
-    };
-    
-    setUser(newUser);
-    if (defaultProjects.length > 0) setCurrentProject(defaultProjects[0]);
-    storageService.setUser(newUser);
-    saveUserToDb(newUser);
-  }, [getUserFromDb, language, saveUserToDb]);
+  }, [getUserFromDb, language, saveUserToDb, showNotification]);
 
   const guestLogin = useCallback(() => {
     const db = storageService.getUsersDb();

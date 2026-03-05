@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import cors from "cors";
@@ -14,12 +13,12 @@ async function startServer() {
   app.use(cors());
 
   // API routes
-  app.get("/api/health", (req, res) => {
+  app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", message: "Solutium Test Server is running" });
   });
 
   // Explicit route for manifest.json to ensure CORS and correct data
-  app.get('/manifest.json', (req, res) => {
+  app.get('/manifest.json', (_req, res) => {
     res.json({
       "id": "test-satellite",
       "name": "Servidor de Prueba",
@@ -34,7 +33,7 @@ async function startServer() {
   });
 
   // Example API for testing
-  app.get("/api/test", (req, res) => {
+  app.get("/api/test", (_req, res) => {
     res.json({ 
       timestamp: Date.now(),
       message: "Conexión exitosa con el servidor de prueba"
@@ -43,6 +42,7 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -51,7 +51,7 @@ async function startServer() {
   } else {
     // Production static serving
     app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*", (req, res) => {
+    app.get("*", (_req, res) => {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
   }
