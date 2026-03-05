@@ -1,0 +1,8 @@
+{
+  "appId": "solutium-invoicer",
+  "version": "1.0.0",
+  "build": "20260221",
+  "dependencies": {
+    "solutium-core": "^1.0.0"
+  }
+}

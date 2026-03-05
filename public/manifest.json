@@ -1,0 +1,10 @@
+{
+  "id": "example-satellite-app",
+  "name": "Example Satellite App",
+  "description": "A sample satellite application for Solutium.app ecosystem.",
+  "icon": "Code",
+  "logoUrl": "https://picsum.photos/seed/example-app/100/100",
+  "category": "Utility",
+  "lifecycleStatus": "local_testing",
+  "url": "http://localhost:3001"
+}

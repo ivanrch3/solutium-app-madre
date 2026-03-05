@@ -1,0 +1,66 @@
+{
+  "version": "2.6.0",
+  "build": "20260226",
+  "history": [
+    {
+      "version": "2.6.0",
+      "date": "2026-02-26",
+      "type": "minor",
+      "changes": [
+        "Implementación de 'Gestión de Activos' en Satélites (AssetManager)",
+        "Sistema de 'Datos Heredados' y Configuración Centralizada (Settings)",
+        "Sincronización de Productos y Servicios (S.I.P.)",
+        "Integración de Agenda y Perfil de Usuario en Satélites",
+        "Soporte completo para opacidad en variables de tema (RGB)"
+      ]
+    },
+    {
+      "version": "2.5.0",
+      "date": "2026-02-25",
+      "type": "minor",
+      "changes": [
+        "Implementación de 'Satellite Foundry' (Generador de Kits de Inicio)",
+        "Motor de Temas (Theming Engine) con inyección de estilos a satélites",
+        "Gobernanza de UI: Estandarización de Sidebar y eliminación de redundancias",
+        "Soporte para 'Fluent Design' (Windows 11 style)"
+      ]
+    },
+    {
+      "version": "2.4.0",
+      "date": "2026-02-24",
+      "type": "minor",
+      "changes": [
+        "Definición de Arquitectura de Datos (Supabase)",
+        "Esquema de Base de Datos Compartido (Profiles, Projects)",
+        "Implementación de Cliente Supabase Híbrido"
+      ]
+    },
+    {
+      "version": "2.3.0",
+      "date": "2026-02-20",
+      "type": "minor",
+      "changes": [
+        "Protocolo 'Bridge' para integración de aplicaciones legacy",
+        "Sistema de Handshake para intercambio de contexto"
+      ]
+    },
+    {
+      "version": "2.2.0",
+      "date": "2026-02-15",
+      "type": "minor",
+      "changes": [
+        "Estandarización del Dashboard Principal",
+        "Nuevo sistema de Tarjetas de Aplicación"
+      ]
+    },
+    {
+      "version": "2.1.5",
+      "date": "2026-02-10",
+      "type": "patch",
+      "changes": [
+        "Corrección crítica en simulador de entorno local",
+        "Ajustes de persistencia en AuthContext"
+      ]
+    }
+  ]
+}
