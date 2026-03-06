@@ -37,7 +37,26 @@ export type IconName =
   | 'ChevronRight'
   | 'Box'
   | 'Zap'
-  | 'Activity';
+  | 'Activity'
+  | 'Layers'
+  | 'LayoutGrid'
+  | 'Library'
+  | 'Gem'
+  | 'ElaborateLayers'
+  | 'ElaborateLayoutGrid'
+  | 'ElaborateStore'
+  | 'ElaborateGem'
+  | 'ElaborateSettings'
+  | 'ElaborateActivity'
+  | 'ElaborateUser';
+
+export interface TagDefinition {
+  id: string;
+  label: string;
+  desc: string;
+  color: string;
+  isCustom?: boolean;
+}
 
 export interface CategoryTheme {
   dominant: string;
@@ -171,6 +190,7 @@ export interface UserProfile {
   borderRadius: string;
   themePreference: 'default' | 'custom';
   activeTheme: ThemeName;
+  coloredSidebarIcons?: boolean;
   
   // Account Owner Data
   subscriptionPlan: 'free' | 'pro' | 'enterprise';
@@ -192,13 +212,16 @@ export interface ServiceApp {
   description: string;
   icon: IconName | React.ReactNode; 
   url: string; 
-  logoUrl?: string; // New: Specific logo for the satellite app
+  logoUrl?: string; // Imagotipo (Full logo)
+  isoUrl?: string; // Isotipo (Icon only)
   status: 'active' | 'beta' | 'coming_soon' | 'offline';
   lifecycleStatus: 'active' | 'development' | 'inactive';
   requiresPro: boolean;
   category?: AppCategory;
   isCustom?: boolean;
   scopes?: string[];
+  tags?: string[];
+  sipEnabled?: boolean;
 }
 
 export enum AuthView {

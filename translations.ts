@@ -2,7 +2,7 @@
 export const translations = {
   es: {
     // Navigation & Common
-    dashboard: "Mi Negocio", // Updated per request
+    dashboard: "Recursos", // Updated per request
     myApps: "Mis Apps",
     digitalAssets: "Activos Digitales",
     automations: "Automatizaciones",
@@ -10,7 +10,7 @@ export const translations = {
     integrations: "Integraciones",
     crm: "CRM Clientes",
     calendar: "Agenda & Citas",
-    profile: "Mi Cuenta & Equipo",
+    profile: "Perfil de usuario",
     projectSettings: "Configuración",
     techRoadmap: "Mapa de Ruta",
     administration: "Administración",
@@ -27,9 +27,11 @@ export const translations = {
     saveChanges: "Guardar cambios",
     lang: "Idioma / Language",
     status: "Estado",
-    install: "Añadir",
-    installed: "Añadida",
-    add: "Añadir",
+    install: "Agregar",
+    installed: "Instalada",
+    added: "Agregadas",
+    remove: "Quitar",
+    add: "Agregar",
     manage: "Administrar",
     all: "Todos",
     lifecycleActive: "Activas",
@@ -319,7 +321,7 @@ export const translations = {
   },
   en: {
     // Navigation & Common
-    dashboard: "My Business", // Updated per request
+    dashboard: "Resources", // Updated per request
     myApps: "My Apps",
     digitalAssets: "Digital Assets",
     automations: "Automations",
@@ -327,7 +329,7 @@ export const translations = {
     integrations: "Integrations",
     crm: "Client CRM",
     calendar: "Agenda & Bookings",
-    profile: "My Account & Team",
+    profile: "User Profile",
     projectSettings: "Settings",
     techRoadmap: "Tech Roadmap",
     administration: "Administration",
@@ -346,6 +348,8 @@ export const translations = {
     status: "Status",
     install: "Add",
     installed: "Added",
+    added: "Added",
+    remove: "Remove",
     add: "Add",
     manage: "Manage",
     all: "All",

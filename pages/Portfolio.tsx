@@ -9,11 +9,12 @@ import { AppCard } from '../components/portfolio/AppCard';
 import { AdminManager } from '../components/portfolio/AdminManager';
 import { KitTable } from '../components/portfolio/KitTable';
 import { storageService } from '../services/storageService';
+import { ViewToggle } from '../components/ViewToggle';
 
 import { Tabs } from '../components/Tabs';
 
 const Portfolio: React.FC = () => {
-  const { currentProject, installApp, user, registerCustomApp, unregisterCustomApp, t, availableApps: dynamicApps } = useAuth();
+  const { currentProject, installApp, uninstallApp, user, registerCustomApp, unregisterCustomApp, t, availableApps: dynamicApps } = useAuth();
   
   const [customUrl, setCustomUrl] = useState('');
   const [isFetching, setIsFetching] = useState(false);
@@ -24,6 +25,13 @@ const Portfolio: React.FC = () => {
   const [adminLifecycleTab, setAdminLifecycleTab] = useState<'active' | 'development' | 'inactive'>('active');
   const [managingApp, setManagingApp] = useState<ServiceApp | null>(null);
   const [generatedKits, setGeneratedKits] = useState<{ category: string; appName: string; devUrl: string }[]>([]);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    return (localStorage.getItem('portfolioViewMode') as 'grid' | 'list') || 'grid';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('portfolioViewMode', viewMode);
+  }, [viewMode]);
 
   useEffect(() => {
     const storedKits = storageService.getGeneratedKits();
@@ -47,21 +55,32 @@ const Portfolio: React.FC = () => {
     navigator.clipboard.writeText(url);
   };
 
+  const [updateTrigger, setUpdateTrigger] = useState(0);
+
+  useEffect(() => {
+    const handleStorageUpdate = () => {
+      setUpdateTrigger(prev => prev + 1);
+    };
+    window.addEventListener('satellite-storage-update', handleStorageUpdate);
+    return () => window.removeEventListener('satellite-storage-update', handleStorageUpdate);
+  }, []);
+
   const isAdmin = user?.role === 'admin';
   
   const customApps = user?.customApps || [];
   // Filter out system apps that are overridden by custom apps (same ID)
   const systemApps = dynamicApps.filter(sysApp => !customApps.some(customApp => customApp.id === sysApp.id));
   
-  const allApps = [...systemApps, ...customApps].map(app => {
-    const { logo, description, scopes, lifecycleStatus } = storageService.getAppCustomizations(app.id);
+  const allApps = React.useMemo(() => [...systemApps, ...customApps].map(app => {
+    const { logo, description, scopes, lifecycleStatus, sipEnabled } = storageService.getAppCustomizations(app.id);
     let newApp = { ...app };
     if (logo) newApp.logoUrl = logo;
     if (description) newApp.description = description;
     if (scopes) newApp.scopes = scopes;
     if (lifecycleStatus) newApp.lifecycleStatus = lifecycleStatus as any;
+    newApp.sipEnabled = sipEnabled !== false;
     return newApp;
-  });
+  }), [systemApps, customApps, updateTrigger]);
   
   const filteredByStatus = isAdmin 
     ? allApps 
@@ -71,11 +90,13 @@ const Portfolio: React.FC = () => {
   const availableApps = filteredByStatus.filter(app => !installedAppIds.includes(app.id));
   const installedApps = filteredByStatus.filter(app => installedAppIds.includes(app.id));
 
-  const categories = ['All', ...Array.from(new Set(allApps.filter(a => a.category).map(a => a.category as string)))];
+  const categories = ['All', 'Added', ...Array.from(new Set(allApps.filter(a => a.category).map(a => a.category as string)))];
 
-  const displayedAvailable = activeCategory === 'All' 
-    ? availableApps 
-    : availableApps.filter(app => app.category === activeCategory);
+  const displayedApps = activeCategory === 'Added'
+    ? installedApps
+    : (activeCategory === 'All' 
+        ? availableApps 
+        : availableApps.filter(app => app.category === activeCategory));
 
   const adminSections = [
     { id: 'active', title: t.lifecycleActive, apps: availableApps.filter(a => a.lifecycleStatus === 'active') },
@@ -87,6 +108,12 @@ const Portfolio: React.FC = () => {
 
   const handleInstall = (appId: string) => {
       installApp(appId);
+  };
+
+  const handleUninstall = (appId: string) => {
+    if (window.confirm("¿Estás seguro de que quieres quitar esta aplicación de este proyecto?")) {
+      uninstallApp(appId);
+    }
   };
 
   const handleRegisterCustom = async () => {
@@ -150,6 +177,7 @@ const Portfolio: React.FC = () => {
         onUpdateApp={(updated) => setManagingApp(updated)}
         onUnregister={unregisterCustomApp}
         t={t}
+        backLabel="Regresar a Tienda de Apps"
       />
     );
   }
@@ -177,16 +205,22 @@ const Portfolio: React.FC = () => {
         </header>
 
         {/* Tabs Section */}
-        <Tabs 
-          options={isAdmin ? [
-            { id: 'apps', label: t.apps },
-            { id: 'new', label: t.newApps }
-          ] : categories.map(cat => ({ id: cat, label: cat === 'All' ? t.all : cat }))}
-          activeTab={isAdmin ? adminTab : activeCategory}
-          onChange={(id: string) => isAdmin ? setAdminTab(id as any) : setActiveCategory(id)}
-          style="primary"
-          className="mb-8"
-        />
+        <div className="flex justify-between items-center mb-8">
+          <Tabs 
+            options={isAdmin ? [
+              { id: 'apps', label: t.apps },
+              { id: 'new', label: t.newApps }
+            ] : categories.map(cat => ({ 
+              id: cat, 
+              label: cat === 'All' ? t.all : (cat === 'Added' ? t.added : cat) 
+            }))}
+            activeTab={isAdmin ? adminTab : activeCategory}
+            onChange={(id: string) => isAdmin ? setAdminTab(id as any) : setActiveCategory(id)}
+            style="primary"
+            className="mb-0"
+          />
+          <ViewToggle view={viewMode} onChange={setViewMode} />
+        </div>
 
         <div className="space-y-12">
           {isAdmin ? (
@@ -212,7 +246,7 @@ const Portfolio: React.FC = () => {
                     <p className="text-slate-400 italic">No hay aplicaciones en esta sección.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                  <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6" : "flex flex-col space-y-4"}>
                     {adminSections.find(s => 
                       s.id === adminLifecycleTab || 
                       (s.id === 'dev' && adminLifecycleTab === 'development')
@@ -225,6 +259,7 @@ const Portfolio: React.FC = () => {
                         onManage={setManagingApp}
                         onUnregister={unregisterCustomApp}
                         t={t}
+                        view={viewMode}
                       />
                     ))}
                   </div>
@@ -249,37 +284,19 @@ const Portfolio: React.FC = () => {
             )
           ) : (
             // User View: Filtered Grid
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {displayedAvailable.map(app => (
+            <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6" : "flex flex-col space-y-4"}>
+              {displayedApps.map(app => (
                 <AppCard 
                   key={app.id}
                   app={app}
+                  isInstalled={installedAppIds.includes(app.id)}
                   onInstall={handleInstall}
+                  onUninstall={activeCategory === 'Added' ? handleUninstall : undefined}
                   t={t}
+                  view={viewMode}
                 />
               ))}
             </div>
-          )}
-
-          {/* Installed Apps Section (Common) */}
-          {!isAdmin && installedApps.length > 0 && (
-            <section className="space-y-6 pt-8">
-              <div className="flex items-center space-x-4">
-                <h3 className="text-xl font-bold text-slate-400">{t.installed}</h3>
-                <div className="h-px flex-1 bg-slate-100"></div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                {installedApps.map(app => (
-                  <AppCard 
-                    key={app.id}
-                    app={app}
-                    isInstalled={true}
-                    onInstall={handleInstall}
-                    t={t}
-                  />
-                ))}
-              </div>
-            </section>
           )}
         </div>
       </div>

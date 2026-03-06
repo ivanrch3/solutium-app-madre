@@ -723,7 +723,7 @@ const ProjectSettings: React.FC = () => {
 
                         {/* 3. Typography (Only visible if Solutium style) */}
                         {(isMasterApp ? user?.uiStyle : uiStyle) === 'solutium' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn mb-8">
                                 <div>
                                     <label className="block text-sm font-bold text-solutium-text mb-3 uppercase tracking-tight">
                                         Tipografía
@@ -744,6 +744,30 @@ const ProjectSettings: React.FC = () => {
                                 </div>
                             </div>
                         )}
+
+                        {/* 4. Sidebar Icons Color Toggle */}
+                        <div className="mt-8 pt-8 border-t border-slate-100">
+                            <label className="block text-sm font-bold text-solutium-text mb-3 uppercase tracking-tight">
+                                Iconos del Panel Lateral
+                            </label>
+                            <div className="flex items-center justify-between p-4 border border-slate-200 rounded-xl bg-slate-50">
+                                <div>
+                                    <p className="font-bold text-slate-900">Iconos Elaborados</p>
+                                    <p className="text-xs text-slate-500">Muestra los iconos del menú lateral con un diseño más detallado, colorido y moderno en lugar de la versión minimalista en gris.</p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        className="sr-only peer"
+                                        checked={user?.coloredSidebarIcons !== false}
+                                        onChange={(e) => {
+                                            if (isMasterApp) updateProfile({ coloredSidebarIcons: e.target.checked });
+                                        }}
+                                    />
+                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-solutium-blue/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-solutium-blue"></div>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

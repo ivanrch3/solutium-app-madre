@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Smartphone, Server, ChevronDown, ChevronUp, Plus, X, Database } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, X, Database } from 'lucide-react';
 import { storageService } from '../services/storageService';
-
-const SATELLITES = [
-  { id: 'web-constructor', name: 'Constructor Web', icon: <Smartphone className="w-5 h-5 text-blue-500" /> },
-  { id: 'invoicer', name: 'Facturación', icon: <Server className="w-5 h-5 text-emerald-500" /> },
-  { id: 'crm', name: 'CRM Clientes', icon: <Server className="w-5 h-5 text-orange-500" /> }
-];
+import { useAuth } from '../context/AuthContext';
+import { Icons } from '../constants';
 
 interface UnifiedContract {
   id: string;
@@ -26,21 +22,64 @@ const INITIAL_CONTRACTS: UnifiedContract[] = [
 ];
 
 export const ExpandableDataMatrix: React.FC = () => {
+  const { availableApps, user } = useAuth();
   const [contracts, setContracts] = useState<UnifiedContract[]>(INITIAL_CONTRACTS);
   const [permissions, setPermissions] = useState<Record<string, string[]>>({});
+  const [sipStatus, setSipStatus] = useState<Record<string, boolean>>({});
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+
+  // Filter apps:
+  // 1. Must be a satellite (not native like CRM if it were in the list, though currently CRM is not in AVAILABLE_APPS)
+  // 2. Must be active or in development
+  // 3. Include custom apps
+  const customApps = user?.customApps || [];
+  // Combine system apps and custom apps, avoiding duplicates
+  const allApps = [...availableApps];
+  customApps.forEach(cA => {
+    if (!allApps.find(a => a.id === cA.id)) {
+      allApps.push(cA);
+    }
+  });
+
+  const matrixApps = allApps.filter(app => 
+    (app.lifecycleStatus === 'active' || app.lifecycleStatus === 'development') &&
+    app.id !== 'crm' // Explicitly exclude CRM as requested
+  );
 
   useEffect(() => {
     const loadPermissions = () => {
       const perms: Record<string, string[]> = {};
-      SATELLITES.forEach(sat => {
+      const sips: Record<string, boolean> = {};
+      matrixApps.forEach(sat => {
         const custom = storageService.getAppCustomizations(sat.id);
         perms[sat.id] = custom.scopes || ['profile', 'projectData'];
+        sips[sat.id] = custom.sipEnabled !== false;
       });
       setPermissions(perms);
+      setSipStatus(sips);
     };
     loadPermissions();
-  }, []);
+
+    // Listen for updates from other components (e.g. AdminManager)
+    const handleStorageUpdate = () => loadPermissions();
+    window.addEventListener('satellite-storage-update', handleStorageUpdate);
+    
+    return () => {
+      window.removeEventListener('satellite-storage-update', handleStorageUpdate);
+    };
+  }, [matrixApps.length]); // Reload if app count changes
+
+  const handleToggleSip = (satelliteId: string) => {
+    setSipStatus(prev => {
+      const newState = !prev[satelliteId];
+      storageService.setAppSipEnabled(satelliteId, newState);
+      
+      // Dispatch event to notify other components (like AdminManager)
+      window.dispatchEvent(new Event('satellite-storage-update'));
+      
+      return { ...prev, [satelliteId]: newState };
+    });
+  };
 
   const handleToggleScope = (satelliteId: string, scopeId: string) => {
     setPermissions(prev => {
@@ -51,6 +90,10 @@ export const ExpandableDataMatrix: React.FC = () => {
       
       const newPerms = { ...prev, [satelliteId]: newScopes };
       storageService.setAppScopes(satelliteId, newScopes);
+      
+      // Dispatch event to notify other components (like AdminManager)
+      window.dispatchEvent(new Event('satellite-storage-update'));
+      
       return newPerms;
     });
   };
@@ -107,16 +150,39 @@ export const ExpandableDataMatrix: React.FC = () => {
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
               <th className="px-6 py-4 font-bold text-slate-700 w-1/3">Contrato de Datos (Objeto)</th>
-              {SATELLITES.map(sat => (
-                <th key={sat.id} className="px-6 py-4 text-center border-l border-slate-200">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="p-2 bg-white rounded-lg shadow-sm border border-slate-100">
-                      {sat.icon}
-                    </div>
-                    <span className="font-bold text-slate-800 text-sm">{sat.name}</span>
-                  </div>
+              {matrixApps.length === 0 ? (
+                <th className="px-6 py-4 text-center text-slate-400 italic font-normal">
+                  No hay satélites activos
                 </th>
-              ))}
+              ) : (
+                matrixApps.map(sat => {
+                  const IconComponent = typeof sat.icon === 'string' ? Icons[sat.icon as keyof typeof Icons] : null;
+                  return (
+                    <th key={sat.id} className="px-6 py-4 text-center border-l border-slate-200">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className={`p-2 rounded-lg shadow-sm border ${sipStatus[sat.id] ? 'bg-white border-slate-100' : 'bg-slate-100 border-slate-200 opacity-50'}`}>
+                          {IconComponent ? <IconComponent className="w-5 h-5 text-slate-600" /> : <Database className="w-5 h-5 text-slate-600" />}
+                        </div>
+                        <span className={`font-bold text-sm ${sipStatus[sat.id] ? 'text-slate-800' : 'text-slate-400'}`}>{sat.name}</span>
+                        
+                        {/* SIP Toggle */}
+                        <button
+                          onClick={() => handleToggleSip(sat.id)}
+                          className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors focus:outline-none ${
+                            sipStatus[sat.id] ? 'bg-green-500' : 'bg-slate-300'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                              sipStatus[sat.id] ? 'translate-x-4' : 'translate-x-0.5'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </th>
+                  );
+                })
+              )}
               <th className="px-6 py-4 text-center border-l border-slate-200 w-16">Detalles</th>
             </tr>
           </thead>
@@ -136,25 +202,33 @@ export const ExpandableDataMatrix: React.FC = () => {
                   </td>
                   
                   {/* TOGGLES */}
-                  {SATELLITES.map(sat => {
-                    const isEnabled = (permissions[sat.id] || []).includes(contract.id);
-                    return (
-                      <td key={`${sat.id}-${contract.id}`} className="px-6 py-4 text-center border-l border-slate-200">
-                        <button
-                          onClick={() => handleToggleScope(sat.id, contract.id)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
-                            isEnabled ? 'bg-purple-600' : 'bg-slate-200'
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              isEnabled ? 'translate-x-6' : 'translate-x-1'
+                  {matrixApps.length === 0 ? (
+                    <td className="px-6 py-4 text-center border-l border-slate-200 text-slate-300">
+                      -
+                    </td>
+                  ) : (
+                    matrixApps.map(sat => {
+                      const isEnabled = (permissions[sat.id] || []).includes(contract.id);
+                      const isSipEnabled = sipStatus[sat.id];
+                      return (
+                        <td key={`${sat.id}-${contract.id}`} className="px-6 py-4 text-center border-l border-slate-200">
+                          <button
+                            disabled={!isSipEnabled}
+                            onClick={() => handleToggleScope(sat.id, contract.id)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
+                              !isSipEnabled ? 'bg-slate-100 cursor-not-allowed opacity-50' : (isEnabled ? 'bg-purple-600' : 'bg-slate-200')
                             }`}
-                          />
-                        </button>
-                      </td>
-                    );
-                  })}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                isEnabled && isSipEnabled ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </td>
+                      );
+                    })
+                  )}
 
                   {/* EXPAND BUTTON */}
                   <td className="px-6 py-4 text-center border-l border-slate-200">
@@ -171,7 +245,7 @@ export const ExpandableDataMatrix: React.FC = () => {
                 <AnimatePresence>
                   {expandedRow === contract.id && (
                     <tr>
-                      <td colSpan={SATELLITES.length + 2} className="p-0 border-b border-slate-200">
+                      <td colSpan={matrixApps.length + 2} className="p-0 border-b border-slate-200">
                         <motion.div 
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}

@@ -40,6 +40,9 @@ interface AuthContextType {
   currentLang: Language;
   isLoading: boolean;
   previewProjectUpdate: (data: Partial<Project>) => void;
+  
+  localMode: boolean;
+  setLocalMode: (enabled: boolean) => void;
 
   // App Management
   availableApps: ServiceApp[];
@@ -69,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [language, setLanguageState] = useState<Language>('es'); 
+  const [localMode, setLocalModeState] = useState<boolean>(storageService.getLocalMode());
   const [adminCustomApps, setAdminCustomApps] = useState<ServiceApp[]>([]);
   const [cachedAdminHqProject, setCachedAdminHqProject] = useState<Project | null>(null);
   const [availableApps, setAvailableApps] = useState<ServiceApp[]>(AVAILABLE_APPS);
@@ -92,78 +96,87 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkSession = useCallback(async () => {
     setIsLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
     
-    if (session?.user) {
-      // Fetch profile from Supabase
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-      
-      if (profile) {
-        // Fetch projects for this user
-        const { data: projectsData } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('owner_id', session.user.id);
+    if (!localMode) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
         
-        const mappedProjects: Project[] = (projectsData || []).map(p => ({
-          id: p.id,
-          name: p.name,
-          brandColors: p.brand_colors,
-          logoUrl: p.logo_url,
-          contactInfo: p.contact_info,
-          socials: [],
-          installedAppIds: [],
-          assignedMemberIds: [],
-          createdAt: new Date(p.created_at).getTime(),
-          products: []
-        }));
+        if (session?.user) {
+          // Fetch profile from Supabase
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profile) {
+            // Fetch projects for this user
+            const { data: projectsData } = await supabase
+              .from('projects')
+              .select('*')
+              .eq('owner_id', session.user.id);
+            
+            const mappedProjects: Project[] = (projectsData || []).map(p => ({
+              id: p.id,
+              name: p.name,
+              brandColors: p.brand_colors,
+              logoUrl: p.logo_url,
+              contactInfo: p.contact_info,
+              socials: [],
+              installedAppIds: [],
+              assignedMemberIds: [],
+              createdAt: new Date(p.created_at).getTime(),
+              products: []
+            }));
 
-        const fullUser: UserProfile = {
-          id: session.user.id,
-          name: profile.full_name || session.user.email?.split('@')[0] || 'Usuario',
-          email: session.user.email || '',
-          role: profile.role || (session.user.email === 'admin@solutium.app' ? 'admin' : 'user'),
-          language: profile.language || 'es',
-          subscriptionPlan: profile.subscription_tier || 'free',
-          projects: mappedProjects,
-          teamMembers: [],
-          onboardingCompleted: true,
-          uiStyle: 'windows',
-          fontFamily: 'Inter',
-          baseSize: '16px',
-          borderRadius: '0.5rem',
-          themePreference: 'default',
-          activeTheme: 'fluent-light',
-        };
+            const fullUser: UserProfile = {
+              id: session.user.id,
+              name: profile.full_name || session.user.email?.split('@')[0] || 'Usuario',
+              email: session.user.email || '',
+              role: profile.role || (session.user.email === 'admin@solutium.app' ? 'admin' : 'user'),
+              language: profile.language || 'es',
+              subscriptionPlan: profile.subscription_tier || 'free',
+              projects: mappedProjects,
+              teamMembers: [],
+              onboardingCompleted: true,
+              uiStyle: 'windows',
+              fontFamily: 'Inter',
+              baseSize: '16px',
+              borderRadius: '0.5rem',
+              themePreference: 'default',
+              activeTheme: 'fluent-light',
+            };
 
-        setUser(fullUser);
-        if (fullUser.language) setLanguageState(fullUser.language as Language);
-        
-        if (mappedProjects.length > 0) {
-          const lastProjectId = storageService.getLastProjectId();
-          const projectToLoad = mappedProjects.find(p => p.id === lastProjectId) || mappedProjects[0];
-          setCurrentProject(projectToLoad);
+            setUser(fullUser);
+            if (fullUser.language) setLanguageState(fullUser.language as Language);
+            
+            if (mappedProjects.length > 0) {
+              const lastProjectId = storageService.getLastProjectId();
+              const projectToLoad = mappedProjects.find(p => p.id === lastProjectId) || mappedProjects[0];
+              setCurrentProject(projectToLoad);
+            }
+            setIsLoading(false);
+            return;
+          }
         }
+      } catch (error) {
+        console.warn('Supabase session check failed, falling back to local storage', error);
       }
-    } else {
-      // Fallback to local storage for demo/guest
-      const existingUser = storageService.getUser();
-      if (existingUser) {
-        setUser(existingUser);
-        if (existingUser.language) setLanguageState(existingUser.language);
-        if (existingUser.projects && existingUser.projects.length > 0) {
-          const lastProjectId = storageService.getLastProjectId();
-          const projectToLoad = existingUser.projects.find((p: Project) => p.id === lastProjectId) || existingUser.projects[0];
-          setCurrentProject(projectToLoad);
-        }
+    }
+
+    // Fallback to local storage for demo/guest or Local Mode
+    const existingUser = storageService.getUser();
+    if (existingUser) {
+      setUser(existingUser);
+      if (existingUser.language) setLanguageState(existingUser.language);
+      if (existingUser.projects && existingUser.projects.length > 0) {
+        const lastProjectId = storageService.getLastProjectId();
+        const projectToLoad = existingUser.projects.find((p: Project) => p.id === lastProjectId) || existingUser.projects[0];
+        setCurrentProject(projectToLoad);
       }
     }
     setIsLoading(false);
-  }, []);
+  }, [localMode]);
 
   useEffect(() => {
     const loadAdminData = () => {
@@ -179,17 +192,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshApps();
     checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-       if (session) {
-           checkSession();
-       } else {
-           setUser(null);
-           setCurrentProject(null);
-       }
-    });
+    if (!localMode) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+         if (session) {
+             checkSession();
+         } else {
+             setUser(null);
+             setCurrentProject(null);
+         }
+      });
 
-    return () => subscription.unsubscribe();
-  }, [checkSession, refreshApps]);
+      return () => subscription.unsubscribe();
+    }
+  }, [checkSession, refreshApps, localMode]);
 
   const updateProfile = useCallback((data: Partial<UserProfile>) => {
     setUser(prev => {
@@ -206,15 +221,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateProfile({ language: lang });
   }, [updateProfile]);
 
+  const setLocalMode = useCallback((enabled: boolean) => {
+    setLocalModeState(enabled);
+    storageService.setLocalMode(enabled);
+    if (enabled) {
+      showNotification('Modo Local activado: Supabase desactivado', 'info');
+    } else {
+      showNotification('Modo Servidor activado: Supabase activado', 'info');
+    }
+  }, [showNotification]);
+
   const login = useCallback(async (email: string, password?: string) => {
     setIsLoading(true);
     try {
-      if (password) {
+      if (password && !localMode) {
         // Real Supabase Login
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
-        // Legacy/Mock Login for dev
+        // Legacy/Mock Login for dev or Local Mode
         const isExample = email === '';
         const finalEmail = isExample ? 'ejemplo@solutium.app' : email;
         const finalName = isExample ? 'Usuario de Ejemplo' : email.split('@')[0];
@@ -250,6 +275,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           borderRadius: '0.5rem',
           themePreference: 'default',
           activeTheme: 'fluent-light',
+          coloredSidebarIcons: true,
         };
         
         setUser(newUser);
@@ -303,6 +329,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       borderRadius: '0.5rem',
       themePreference: 'default',
       activeTheme: 'fluent-light',
+      coloredSidebarIcons: true,
       customApps: adminCustomApps
     };
     setUser(guestUser);
@@ -500,7 +527,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Si no es admin o falló el registro global, registrar localmente para el usuario
     const currentCustom = user.customApps || [];
     if (currentCustom.find(a => a.id === app.id)) return;
-    updateProfile({ customApps: [...currentCustom, { ...app, isCustom: true, lifecycleStatus: app.lifecycleStatus || 'development' }] });
+    updateProfile({ customApps: [...currentCustom, { ...app, isCustom: true, lifecycleStatus: app.lifecycleStatus || 'development', tags: app.tags || [] }] });
   }, [updateProfile, user, refreshApps, showNotification]);
 
   const unregisterCustomApp = useCallback(async (appId: string) => {
@@ -675,6 +702,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       t, 
       currentLang: language, 
       isLoading, 
+      localMode,
+      setLocalMode,
       previewProjectUpdate,
       customers,
       addCustomer,
@@ -690,7 +719,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user, currentProject, adminHqProject, adminCustomApps, login, guestLogin, logout, updateProfile, duplicateProject,
     deleteProject, createProject, switchProject, updateProject, toggleProjectMember,
     addTeamMember, removeTeamMember, installApp, uninstallApp, registerCustomApp,
-    unregisterCustomApp, setLanguage, t, language, isLoading, previewProjectUpdate,
+    unregisterCustomApp, setLanguage, t, language, isLoading, localMode, setLocalMode, previewProjectUpdate,
     customers, addCustomer, updateCustomer, deleteCustomer, addCustomersBatch,
     products, addProduct, updateProduct, deleteProduct
   ]);

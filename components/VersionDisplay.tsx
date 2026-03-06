@@ -46,7 +46,7 @@ export const VersionDisplay: React.FC<{ className?: string }> = ({ className }) 
       {/* Version Trigger */}
       <button 
         onClick={() => setIsOpen(true)}
-        className={`group flex items-center space-x-2 text-xs text-slate-400 hover:text-solutium-blue transition-colors ${className}`}
+        className={`group flex items-center space-x-1 text-xs text-slate-400 hover:text-solutium-blue transition-colors ${className}`}
         title="Ver historial de cambios"
       >
         <GitCommit className="w-3 h-3" />

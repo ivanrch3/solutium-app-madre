@@ -4,7 +4,7 @@ import { AuthView } from '../types';
 import { Input } from '../components/Input';
 
 const Landing: React.FC = () => {
-  const { login, guestLogin, setLanguage, t, currentLang } = useAuth();
+  const { login, guestLogin, setLanguage, t, currentLang, localMode, setLocalMode } = useAuth();
   const [view, setView] = useState<AuthView>(AuthView.LOGIN);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('admin@solutium.app');
@@ -53,6 +53,18 @@ const Landing: React.FC = () => {
              />
              
             <div className="flex space-x-2">
+                 <button 
+                   onClick={() => setLocalMode(!localMode)} 
+                   className={`text-[10px] px-2 py-1 rounded border transition-all flex items-center gap-1.5 ${
+                     localMode 
+                     ? 'bg-solutium-blue border-solutium-blue text-white' 
+                     : 'border-slate-500 text-slate-400 hover:border-slate-300'
+                   }`}
+                   title={localMode ? 'Modo Local Activado (Supabase Bypass)' : 'Modo Servidor Activado (Supabase)'}
+                 >
+                   <div className={`w-1.5 h-1.5 rounded-full ${localMode ? 'bg-green-400 animate-pulse' : 'bg-slate-500'}`}></div>
+                   {localMode ? 'LOCAL' : 'SERVER'}
+                 </button>
                  <button onClick={() => setLanguage('es')} className={`text-xs px-2 py-1 rounded ${currentLang === 'es' ? 'bg-solutium-yellow text-solutium-dark' : 'text-slate-400'}`}>ES</button>
                  <button onClick={() => setLanguage('en')} className={`text-xs px-2 py-1 rounded ${currentLang === 'en' ? 'bg-solutium-yellow text-solutium-dark' : 'text-slate-400'}`}>EN</button>
             </div>

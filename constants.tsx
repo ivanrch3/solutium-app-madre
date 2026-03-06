@@ -104,6 +104,124 @@ export const Icons: Record<IconName, ({ className }: { className?: string }) => 
   Box: ({ className = "w-5 h-5" }) => <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>,
   Zap: ({ className = "w-5 h-5" }) => <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
   Activity: ({ className = "w-5 h-5" }) => <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>,
+  Layers: ({ className = "w-5 h-5" }) => <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>,
+  LayoutGrid: ({ className = "w-5 h-5" }) => <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>,
+  Library: ({ className = "w-5 h-5" }) => <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>,
+  Gem: ({ className = "w-5 h-5" }) => <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 3h12l4 6-10 13L2 9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3l-4 6 5 13" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 3l4 6-5 13" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2 9h20" /></svg>,
+  ElaborateLayers: ({ className = "w-5 h-5" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="url(#paint0_linear)" stroke="#0ea5e9" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M2 12L12 17L22 12" stroke="#0284c7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M2 17L12 22L22 17" stroke="#0369a1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <defs>
+        <linearGradient id="paint0_linear" x1="12" y1="2" x2="12" y2="12" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#38bdf8" stopOpacity="0.8"/>
+          <stop offset="1" stopColor="#0284c7" stopOpacity="0.8"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  ),
+  ElaborateLayoutGrid: ({ className = "w-5 h-5" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="3" width="7" height="7" rx="2" fill="url(#grid_paint0)" stroke="#a855f7" strokeWidth="1.5"/>
+      <rect x="14" y="3" width="7" height="7" rx="2" fill="url(#grid_paint1)" stroke="#d946ef" strokeWidth="1.5"/>
+      <rect x="14" y="14" width="7" height="7" rx="2" fill="url(#grid_paint2)" stroke="#a855f7" strokeWidth="1.5"/>
+      <rect x="3" y="14" width="7" height="7" rx="2" fill="url(#grid_paint3)" stroke="#8b5cf6" strokeWidth="1.5"/>
+      <defs>
+        <linearGradient id="grid_paint0" x1="3" y1="3" x2="10" y2="10" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#c084fc" stopOpacity="0.8"/>
+          <stop offset="1" stopColor="#9333ea" stopOpacity="0.8"/>
+        </linearGradient>
+        <linearGradient id="grid_paint1" x1="14" y1="3" x2="21" y2="10" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#e879f9" stopOpacity="0.8"/>
+          <stop offset="1" stopColor="#c026d3" stopOpacity="0.8"/>
+        </linearGradient>
+        <linearGradient id="grid_paint2" x1="14" y1="14" x2="21" y2="21" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#c084fc" stopOpacity="0.8"/>
+          <stop offset="1" stopColor="#9333ea" stopOpacity="0.8"/>
+        </linearGradient>
+        <linearGradient id="grid_paint3" x1="3" y1="14" x2="10" y2="21" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#a78bfa" stopOpacity="0.8"/>
+          <stop offset="1" stopColor="#7c3aed" stopOpacity="0.8"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  ),
+  ElaborateStore: ({ className = "w-5 h-5" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 8L4.5 3H19.5L21 8" stroke="#059669" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M3 8C3 9.65685 4.34315 11 6 11C7.65685 11 9 9.65685 9 8C9 9.65685 10.3431 11 12 11C13.6569 11 15 9.65685 15 8C15 9.65685 16.3431 11 18 11C19.6569 11 21 9.65685 21 8" fill="url(#store_paint0)" stroke="#10b981" strokeWidth="1.5"/>
+      <path d="M4 11V19C4 20.1046 4.89543 21 6 21H18C19.1046 21 20 20.1046 20 19V11" fill="url(#store_paint1)" stroke="#059669" strokeWidth="1.5"/>
+      <path d="M10 21V14H14V21" stroke="#047857" strokeWidth="1.5" fill="#a7f3d0"/>
+      <defs>
+        <linearGradient id="store_paint0" x1="3" y1="8" x2="21" y2="11" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#34d399" stopOpacity="0.8"/>
+          <stop offset="1" stopColor="#059669" stopOpacity="0.8"/>
+        </linearGradient>
+        <linearGradient id="store_paint1" x1="12" y1="11" x2="12" y2="21" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#6ee7b7" stopOpacity="0.4"/>
+          <stop offset="1" stopColor="#10b981" stopOpacity="0.4"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  ),
+  ElaborateGem: ({ className = "w-5 h-5" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 3H18L22 9L12 22L2 9L6 3Z" fill="url(#gem_paint0)" stroke="#d97706" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M12 22L16 9M12 22L8 9M2 9H22M6 3L8 9M18 3L16 9" stroke="#f59e0b" strokeWidth="1.5" strokeLinejoin="round"/>
+      <defs>
+        <linearGradient id="gem_paint0" x1="12" y1="3" x2="12" y2="22" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#fbbf24" stopOpacity="0.9"/>
+          <stop offset="1" stopColor="#ea580c" stopOpacity="0.9"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  ),
+  ElaborateSettings: ({ className = "w-5 h-5" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" fill="url(#set_paint0)" stroke="#475569" strokeWidth="1.5"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" fill="url(#set_paint1)" stroke="#334155" strokeWidth="1.5"/>
+      <defs>
+        <linearGradient id="set_paint0" x1="9" y1="9" x2="15" y2="15" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#94a3b8"/>
+          <stop offset="1" stopColor="#475569"/>
+        </linearGradient>
+        <linearGradient id="set_paint1" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#cbd5e1" stopOpacity="0.5"/>
+          <stop offset="1" stopColor="#64748b" stopOpacity="0.5"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  ),
+  ElaborateActivity: ({ className = "w-5 h-5" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M22 12H18L15 21L9 3L6 12H2" stroke="url(#act_paint0)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M22 12H18L15 21L9 3L6 12H2" stroke="#e11d48" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+      <defs>
+        <linearGradient id="act_paint0" x1="2" y1="12" x2="22" y2="12" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#fb7185"/>
+          <stop offset="0.5" stopColor="#e11d48"/>
+          <stop offset="1" stopColor="#9f1239"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  ),
+  ElaborateUser: ({ className = "w-5 h-5" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="7" r="4" fill="url(#usr_paint0)" stroke="#4338ca" strokeWidth="1.5"/>
+      <path d="M4 21C4 16.5817 7.58172 13 12 13C16.4183 13 20 16.5817 20 21" fill="url(#usr_paint1)" stroke="#4338ca" strokeWidth="1.5" strokeLinecap="round"/>
+      <defs>
+        <linearGradient id="usr_paint0" x1="8" y1="3" x2="16" y2="11" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#818cf8" stopOpacity="0.9"/>
+          <stop offset="1" stopColor="#4f46e5" stopOpacity="0.9"/>
+        </linearGradient>
+        <linearGradient id="usr_paint1" x1="4" y1="13" x2="20" y2="21" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#a5b4fc" stopOpacity="0.6"/>
+          <stop offset="1" stopColor="#4338ca" stopOpacity="0.6"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  ),
 };
 
 // --- INDUSTRIES ---
@@ -227,25 +345,16 @@ export const DEFAULT_IMAGE_MAPPING: ImageMapping[] = [
 
 export const AVAILABLE_APPS: ServiceApp[] = [
   {
-    id: 'invoicer',
-    name: 'Creador de proformas',
-    description: 'Gestión de facturas, presupuestos y gastos.',
-    icon: 'Invoice',
-    url: 'http://localhost:3001',
-    category: 'Finanzas',
+    id: 'test-app',
+    name: 'App de prueba',
+    description: 'Aplicación de demostración para verificar la integración de la matriz y la tienda.',
+    icon: 'Box',
+    url: 'http://localhost:3005',
+    category: 'Productividad',
     status: 'active',
     lifecycleStatus: 'active',
-    requiresPro: false
-  },
-  {
-    id: 'web-constructor',
-    name: 'Constructor Web',
-    description: 'Crea sitios web y landing pages con IA y módulos inteligentes.',
-    icon: 'WebBuilder',
-    url: 'http://localhost:3004',
-    category: 'Marketing y Ventas',
-    status: 'beta',
-    lifecycleStatus: 'development',
-    requiresPro: true
+    requiresPro: false,
+    tags: ['demo', 'test'],
+    scopes: ['profile', 'projectData']
   }
 ];

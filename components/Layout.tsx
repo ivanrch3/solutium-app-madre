@@ -18,7 +18,7 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
-  const { user, currentProject, adminHqProject, switchProject, createProject, logout, t, currentLang } = useAuth();
+  const { user, currentProject, adminHqProject, switchProject, createProject, logout, t, currentLang, localMode } = useAuth();
   const { interfaceTheme } = useTheme();
   const { hasUnsavedChanges: isDirty, setHasUnsavedChanges } = useNavigation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -28,6 +28,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
     }
     return false;
   });
+  
+  // On mobile, the sidebar should always be expanded when visible
+  const isCollapsed = isSidebarCollapsed && !isMobileMenuOpen;
+
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isManageProjectsModalOpen, setIsManageProjectsModalOpen] = useState(false);
@@ -138,17 +142,19 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
     localStorage.setItem('solutium_sidebar_collapsed', String(newState));
   };
 
+  const isColoredIcons = user?.coloredSidebarIcons !== false; // Default to true if undefined
+
   const navItems = [
-    { id: 'dashboard', label: t.dashboard, icon: Icons.Grid },
-    { id: 'my-apps', label: t.myApps, icon: Icons.Box },
-    { id: 'assets', label: t.digitalAssets, icon: Icons.Folder },
-    { id: 'portfolio', label: t.portfolio, icon: Icons.Store },
+    { id: 'assets', label: t.digitalAssets, icon: isColoredIcons ? Icons.ElaborateLayers : Icons.Layers, color: 'text-blue-500' },
+    { id: 'my-apps', label: t.myApps, icon: isColoredIcons ? Icons.ElaborateLayoutGrid : Icons.LayoutGrid, color: 'text-purple-500' },
+    { id: 'portfolio', label: t.portfolio, icon: isColoredIcons ? Icons.ElaborateStore : Icons.Store, color: 'text-emerald-500' },
+    { id: 'dashboard', label: t.dashboard, icon: isColoredIcons ? Icons.ElaborateGem : Icons.Gem, color: 'text-amber-500' },
   ];
 
   if (user?.role === ('admin' as any)) {
     // Integrations moved to My Apps > Integrations tab
-    navItems.push({ id: 'administration', label: t.administration || 'Administración', icon: Icons.Settings });
-    navItems.push({ id: 'statistics', label: t.statistics || 'Estadísticas', icon: Icons.Activity });
+    navItems.push({ id: 'administration', label: t.administration || 'Administración', icon: isColoredIcons ? Icons.ElaborateSettings : Icons.Settings, color: 'text-slate-500' });
+    navItems.push({ id: 'statistics', label: t.statistics || 'Estadísticas', icon: isColoredIcons ? Icons.ElaborateActivity : Icons.Activity, color: 'text-rose-500' });
   }
 
   const executeNavigation = (type: 'tab' | 'project' | 'logout', target: string) => {
@@ -238,7 +244,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
   };
 
   return (
-    <div className={`h-screen flex flex-col md:flex-row font-sans transition-colors duration-300 overflow-hidden ${interfaceTheme.uiStyle === 'windows' ? 'p-3 gap-3' : ''}`}
+    <div className={`h-screen flex flex-col xl:flex-row font-sans transition-colors duration-300 overflow-hidden ${interfaceTheme.uiStyle === 'windows' ? 'p-3 gap-3' : ''}`}
       style={{
         '--solutium-primary': interfaceTheme.colors.primary,
         '--solutium-secondary': interfaceTheme.colors.secondary,
@@ -304,12 +310,31 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
         .sidebar-item-inactive { color: rgba(255, 255, 255, 0.7) !important; }
         .sidebar-item-inactive:hover { color: #ffffff !important; }
         .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1); }
+        
+        /* Custom Scrollbar to prevent layout shift */
+        .custom-scrollbar {
+            overflow-y: overlay;
+            scrollbar-gutter: stable;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(156, 163, 175, 0.3);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(156, 163, 175, 0.5);
+        }
       `}</style>
 
       {/* Mobile Header */}
-      <div className="md:hidden bg-white text-slate-800 p-4 flex justify-between items-center shadow-sm border-b border-slate-200 z-30">
+      <div className="xl:hidden bg-white text-slate-800 p-3 flex justify-between items-center shadow-sm border-b border-slate-200 z-40 relative">
         <div className="flex items-center space-x-3">
-            <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-1 text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
+            <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
             <img 
@@ -318,35 +343,111 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
                 className="h-8 w-auto object-contain" 
             />
         </div>
+        <div className="flex items-center gap-2">
+            {/* Mobile Profile Avatar */}
+            <div 
+                onClick={() => {
+                    setIsProfileDropdownOpen(!isProfileDropdownOpen);
+                    setIsMobileMenuOpen(false); // Close sidebar when opening profile dropdown
+                }}
+                className="w-8 h-8 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center overflow-hidden cursor-pointer"
+            >
+                {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                ) : (
+                    <span className="text-xs font-bold text-slate-600">{user?.name?.charAt(0).toUpperCase()}</span>
+                )}
+            </div>
+        </div>
       </div>
+
+      {/* Mobile Profile Dropdown Overlay */}
+      <AnimatePresence>
+        {isProfileDropdownOpen && (
+            <>
+                <div 
+                    className="fixed inset-0 z-40 bg-black/20 xl:hidden"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                />
+                <motion.div 
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    className="absolute top-16 right-2 w-64 bg-white rounded-xl shadow-2xl z-50 xl:hidden border border-slate-100 overflow-hidden"
+                >
+                    <div className="p-4 border-b border-slate-100 bg-slate-50">
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold overflow-hidden">
+                                {user?.avatarUrl ? (
+                                    <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    user?.name?.charAt(0).toUpperCase()
+                                )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-slate-900 truncate">{user?.name}</p>
+                                <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="p-2">
+                        <button 
+                            onClick={() => {
+                                setIsProfileDropdownOpen(false);
+                                attemptNavigation('tab', 'profile');
+                            }}
+                            className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                        >
+                            <Icons.User className="w-4 h-4" />
+                            <span>Mi Perfil</span>
+                        </button>
+                        <button 
+                            onClick={() => {
+                                setIsProfileDropdownOpen(false);
+                                attemptNavigation('logout', 'logout');
+                            }}
+                            className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                            <Icons.LogOut className="w-4 h-4" />
+                            <span>{t.signOut}</span>
+                        </button>
+                    </div>
+                    {/* Version Display for Mobile Dropdown */}
+                    <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 flex justify-center">
+                        <VersionDisplay className="text-slate-400" />
+                    </div>
+                </motion.div>
+            </>
+        )}
+      </AnimatePresence>
 
       {/* Main Content Area (Sidebar + Main) */}
       <div className="flex-1 flex flex-row overflow-hidden relative">
         {/* Sidebar */}
         <aside 
-          className={`fixed md:relative z-20 ${interfaceTheme.uiStyle === 'windows' ? 'bg-white text-slate-700 rounded-2xl shadow-sm' : 'bg-solutium-dark text-white h-full'} transition-all duration-300 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col ${interfaceTheme.uiStyle === 'windows' ? '' : 'shadow-2xl'} overflow-visible`}
+          className={`fixed xl:relative z-20 ${interfaceTheme.uiStyle === 'windows' ? 'bg-white text-slate-700 rounded-2xl shadow-sm' : 'bg-solutium-dark text-white h-full'} transition-all duration-300 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} xl:translate-x-0 flex flex-col ${interfaceTheme.uiStyle === 'windows' ? '' : 'shadow-2xl'} overflow-visible`}
           style={{ width: 'var(--sidebar-width)' }}
         >
           {/* Collapse Button */}
           <button 
             onClick={toggleSidebar}
-            className={`hidden md:flex absolute -right-3 top-10 z-50 p-1 rounded-full border shadow-md transition-colors ${
+            className={`hidden xl:flex absolute -right-3 top-10 z-50 p-1 rounded-full border shadow-md transition-colors ${
               interfaceTheme.uiStyle === 'windows' 
                 ? 'bg-white border-slate-200 text-slate-400 hover:text-solutium-blue' 
                 : 'bg-solutium-dark border-white/20 text-white/60 hover:text-white'
             }`}
           >
-            {isSidebarCollapsed ? <Icons.ChevronRight className="w-4 h-4" /> : <Icons.ChevronLeft className="w-4 h-4" />}
+            {isCollapsed ? <Icons.ChevronRight className="w-4 h-4" /> : <Icons.ChevronLeft className="w-4 h-4" />}
           </button>
 
         {/* Scrollable Content Wrapper */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col pb-20 md:pb-0">
-          <div className={`hidden md:flex p-6 ${interfaceTheme.uiStyle === 'windows' ? 'border-b border-slate-100' : 'border-b border-white/10'} items-center justify-center min-h-[100px]`}>
-            <div className={`flex-1 flex justify-center ${isSidebarCollapsed ? '' : 'md:justify-start'} overflow-hidden transition-all duration-300`}>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col pb-20 xl:pb-0">
+          <div className={`hidden xl:flex p-6 ${interfaceTheme.uiStyle === 'windows' ? 'border-b border-slate-100' : 'border-b border-white/10'} items-center justify-center min-h-[100px]`}>
+            <div className={`flex-1 flex justify-center ${isCollapsed ? '' : 'xl:justify-start'} overflow-hidden transition-all duration-300`}>
                <img 
-                  src={getImageSrc(isSidebarCollapsed ? ImageLocation.Favicon : ImageLocation.SidebarLogo)} 
+                  src={getImageSrc(isCollapsed ? ImageLocation.Favicon : ImageLocation.SidebarLogo)} 
                   alt="Logo" 
-                  className={`${isSidebarCollapsed ? 'h-8' : 'h-14'} w-auto object-contain max-w-full transition-all duration-300`} 
+                  className={`${isCollapsed ? 'h-8' : 'h-14'} w-auto object-contain max-w-full transition-all duration-300`} 
                />
             </div>
           </div>
@@ -357,7 +458,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
                 <div className="relative flex-1">
                     <button 
                       onClick={() => {
-                          if (user?.role !== ('admin' as any) && !isSidebarCollapsed) {
+                          if (user?.role !== ('admin' as any) && !isCollapsed) {
                               setIsProjectMenuOpen(!isProjectMenuOpen);
                           }
                       }}
@@ -371,16 +472,23 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
                             <div className={`w-6 h-6 rounded flex items-center justify-center font-bold text-xs shrink-0 ${interfaceTheme.uiStyle === 'windows' ? 'bg-solutium-blue text-white' : 'bg-solutium-yellow text-solutium-dark'}`}>
                                 {currentProject?.name.charAt(0).toUpperCase() || '+'}
                             </div>
-                            {!isSidebarCollapsed && <span className="text-sm font-medium truncate text-left">{currentProject?.name || t.createProject}</span>}
+                            {!isCollapsed && (
+                              <div className="flex items-center gap-1.5 truncate">
+                                <span className="text-sm font-medium truncate text-left">{currentProject?.name || t.createProject}</span>
+                                {localMode && (
+                                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" title="Modo Local Activo"></div>
+                                )}
+                              </div>
+                            )}
                         </div>
-                        {user?.role !== ('admin' as any) && !isSidebarCollapsed && (
+                        {user?.role !== ('admin' as any) && !isCollapsed && (
                             <svg className={`w-4 h-4 shrink-0 ${interfaceTheme.uiStyle === 'windows' ? 'text-slate-400' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isProjectMenuOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
                             </svg>
                         )}
                     </button>
 
-                    {isProjectMenuOpen && user?.role !== ('admin' as any) && !isSidebarCollapsed && (
+                    {isProjectMenuOpen && user?.role !== ('admin' as any) && !isCollapsed && (
                       <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-lg shadow-xl overflow-hidden z-30 ring-1 ring-black/5">
                           <div className="max-h-48 overflow-y-auto">
                             {user?.projects.map(p => (
@@ -406,7 +514,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
                     )}
                 </div>
 
-                {!isSidebarCollapsed && (
+                {!isCollapsed && (
                   <button 
                       onClick={() => attemptNavigation('tab', 'project-settings')}
                       className={`p-2.5 rounded-lg border transition-colors ${
@@ -433,20 +541,20 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
                   <button
                     key={item.id}
                     onClick={() => attemptNavigation('tab', item.id)}
-                    className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} px-4 py-3 rounded-lg transition-all duration-200 group ${
+                    className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-4 py-3 rounded-lg transition-all duration-200 group ${
                       isActive 
                       ? 'bg-[#0e7490] text-white shadow-md font-medium' 
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`}
-                    title={isSidebarCollapsed ? item.label : ''}
+                    title={isCollapsed ? item.label : ''}
                   >
                     <div className="flex items-center space-x-3">
-                        <div className={`${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                        <div className={`${isActive ? 'text-white' : (isColoredIcons ? item.color : 'text-slate-400 group-hover:text-slate-600')}`}>
                           <Icon />
                         </div>
-                        {!isSidebarCollapsed && <span className="font-medium tracking-wide whitespace-nowrap">{item.label}</span>}
+                        {!isCollapsed && <span className="font-medium tracking-wide whitespace-nowrap">{item.label}</span>}
                     </div>
-                    {isActive && !isSidebarCollapsed && (
+                    {isActive && !isCollapsed && (
                         <svg className="w-4 h-4 text-white opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
@@ -460,99 +568,80 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
               <button
                 key={item.id}
                 onClick={() => attemptNavigation('tab', item.id)}
-                className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'space-x-3'} px-4 py-3 rounded-lg transition-all duration-200 group ${
+                className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'} px-4 py-3 rounded-lg transition-all duration-200 group ${
                   isActive 
                   ? 'bg-solutium-blue sidebar-item-active md:shadow-lg border-l-4 border-solutium-yellow' 
                   : 'sidebar-item-inactive md:hover:bg-white/5'
                 }`}
-                title={isSidebarCollapsed ? item.label : ''}
+                title={isCollapsed ? item.label : ''}
               >
-                <div className={`${isActive ? 'text-solutium-yellow' : 'opacity-60 group-hover:opacity-100'}`}>
+                <div className={`${isActive ? 'text-solutium-yellow' : (isColoredIcons ? item.color : 'opacity-60 group-hover:opacity-100')}`}>
                   <Icon />
                 </div>
-                {!isSidebarCollapsed && <span className="font-medium tracking-wide whitespace-nowrap">{item.label}</span>}
+                {!isCollapsed && <span className="font-medium tracking-wide whitespace-nowrap">{item.label}</span>}
               </button>
             );
           })}
         </nav>
+        </div>
 
-          <div ref={dropdownRef} className={`p-4 ${interfaceTheme.uiStyle === 'windows' ? 'border-t border-slate-100 bg-slate-50' : 'border-t border-white/10 bg-black/20'} relative mt-auto`}>
-            <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-1'}`}>
-                <div 
-                    onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                    className={`flex-1 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'space-x-3'} px-2 py-2 rounded-lg cursor-pointer transition-colors group ${
-                        interfaceTheme.uiStyle === 'windows'
-                        ? (activeTab === 'profile' || isProfileDropdownOpen ? 'bg-white shadow-sm border border-slate-200' : 'hover:bg-white hover:shadow-sm hover:border hover:border-slate-200 border border-transparent')
-                        : (activeTab === 'profile' || isProfileDropdownOpen ? 'bg-white/10' : 'hover:bg-white/5')
-                    }`}
-                    title={isSidebarCollapsed ? user?.name : ''}
-                >
-                    <div className="w-9 h-9 rounded-full bg-slate-600 border border-slate-400 flex items-center justify-center text-sm font-bold text-white relative shrink-0 shadow-inner overflow-hidden">
-                        {user?.avatarUrl ? (
-                            <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
-                        ) : (
-                            user?.name.charAt(0).toUpperCase()
-                        )}
-                        <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-slate-600 z-10"></div>
-                    </div>
-                    {!isSidebarCollapsed && (
-                      <div className="overflow-hidden flex flex-col justify-center">
-                          <p className={`text-sm font-bold truncate transition-colors leading-tight ${interfaceTheme.uiStyle === 'windows' ? 'text-slate-700 group-hover:text-[#0e7490]' : 'text-white group-hover:text-solutium-yellow'}`}>{user?.name}</p>
-                          <p className={`text-[10px] truncate font-medium leading-tight mt-0.5 ${interfaceTheme.uiStyle === 'windows' ? 'text-slate-400' : 'text-white/70'}`}>{user?.email}</p>
-                      </div>
-                    )}
-                </div>
-                
-                {!isSidebarCollapsed && (
-                  <button 
-                      onClick={(e) => {
-                          e.stopPropagation();
-                          setIsProfileDropdownOpen(!isProfileDropdownOpen);
-                      }}
-                      className={`p-2 rounded-lg transition-all ${
-                          interfaceTheme.uiStyle === 'windows'
-                          ? (isProfileDropdownOpen ? 'bg-slate-200 text-[#0e7490]' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600')
-                          : (isProfileDropdownOpen ? 'bg-white/20 text-solutium-yellow scale-110' : 'text-white/40 hover:bg-white/10 hover:text-white')
-                      }`}
-                      title="Opciones de cuenta"
-                  >
-                      <svg className={`w-4 h-4 transition-transform duration-300 ${isProfileDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                  </button>
-                )}
-            </div>
-
-            {/* Profile Options Accordion (Expanded Sidebar) */}
+        <div ref={dropdownRef} className={`hidden xl:block p-4 ${interfaceTheme.uiStyle === 'windows' ? 'border-t border-slate-100 bg-slate-50' : 'border-t border-white/10 bg-black/20'} relative mt-auto shrink-0`}>
+            {/* Profile Options Accordion (Expanded Sidebar) - Now ABOVE the button */}
             <AnimatePresence>
-                {!isSidebarCollapsed && isProfileDropdownOpen && (
+                {!isCollapsed && isProfileDropdownOpen && (
                     <motion.div 
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: 'easeInOut' }}
-                        className="mt-3 space-y-1 border-t border-white/5 pt-2 overflow-hidden"
+                        initial="hidden"
+                        animate="visible"
+                        exit="hidden"
+                        variants={{
+                            hidden: {
+                                height: 0,
+                                opacity: 0,
+                                transition: {
+                                    when: "afterChildren",
+                                    staggerChildren: 0.1,
+                                    staggerDirection: 1,
+                                    duration: 0.3,
+                                    ease: 'easeInOut'
+                                }
+                            },
+                            visible: {
+                                height: 'auto',
+                                opacity: 1,
+                                transition: {
+                                    when: "beforeChildren",
+                                    staggerChildren: 0.1,
+                                    staggerDirection: -1,
+                                    duration: 0.3,
+                                    ease: 'easeInOut'
+                                }
+                            }
+                        }}
+                        className="mb-1 space-y-1 border-b border-white/5 pb-1 overflow-hidden"
                     >
-                        <button 
-                            onClick={() => {
-                                setIsProfileDropdownOpen(false);
-                                attemptNavigation('tab', 'profile');
+                        {/* Version Display (Inside Dropdown) - At the very top */}
+                        <motion.div 
+                            variants={{
+                                hidden: { opacity: 0, y: 10, transition: { duration: 0.2 } },
+                                visible: { opacity: 1, y: 0, transition: { duration: 0.2 } }
                             }}
-                            className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-colors font-medium ${
-                                interfaceTheme.uiStyle === 'windows'
-                                ? 'text-slate-600 hover:bg-white hover:shadow-sm'
-                                : 'text-white/70 hover:bg-white/10 hover:text-white'
+                            className={`mb-2 pb-2 border-b flex justify-center ${
+                                interfaceTheme.uiStyle === 'windows' ? 'border-slate-200' : 'border-white/5'
                             }`}
                         >
-                            <Icons.User className="w-4 h-4" />
-                            <span>Mi Perfil</span>
-                        </button>
-                        <button 
+                            <VersionDisplay className={interfaceTheme.uiStyle === 'windows' ? 'text-slate-400 hover:text-slate-600' : 'text-white/30 hover:text-white/60'} />
+                        </motion.div>
+
+                        <motion.button 
+                            variants={{
+                                hidden: { opacity: 0, y: 10, transition: { duration: 0.2 } },
+                                visible: { opacity: 1, y: 0, transition: { duration: 0.2 } }
+                            }}
                             onClick={() => {
                                 setIsProfileDropdownOpen(false);
                                 attemptNavigation('logout', 'logout');
                             }}
-                            className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-colors font-bold ${
+                            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition-colors font-bold ${
                                 interfaceTheme.uiStyle === 'windows'
                                 ? 'text-red-500 hover:bg-red-50'
                                 : 'text-red-400 hover:bg-red-500/10'
@@ -560,14 +649,66 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
                         >
                             <Icons.LogOut className="w-4 h-4" />
                             <span>{t.signOut}</span>
-                        </button>
+                        </motion.button>
+
+                        <motion.button 
+                            variants={{
+                                hidden: { opacity: 0, y: 10, transition: { duration: 0.2 } },
+                                visible: { opacity: 1, y: 0, transition: { duration: 0.2 } }
+                            }}
+                            onClick={() => {
+                                setIsProfileDropdownOpen(false);
+                                attemptNavigation('tab', 'profile');
+                            }}
+                            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm transition-colors font-medium ${
+                                interfaceTheme.uiStyle === 'windows'
+                                ? 'text-slate-600 hover:bg-white hover:shadow-sm'
+                                : 'text-white/70 hover:bg-white/10 hover:text-white'
+                            }`}
+                        >
+                            {isColoredIcons ? (
+                                <Icons.ElaborateUser className="w-4 h-4" />
+                            ) : (
+                                <Icons.User className="w-4 h-4" />
+                            )}
+                            <span>Mi Perfil</span>
+                        </motion.button>
                     </motion.div>
                 )}
             </AnimatePresence>
 
+            <div className="flex items-center justify-center w-full">
+                <div 
+                    onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                    className={`w-full flex items-center justify-center ${isCollapsed ? '' : 'space-x-2'} px-1.5 py-1.5 rounded-lg cursor-pointer transition-colors group ${
+                        interfaceTheme.uiStyle === 'windows'
+                        ? (activeTab === 'profile' || isProfileDropdownOpen ? 'bg-white shadow-sm border border-slate-200' : 'hover:bg-white hover:shadow-sm hover:border hover:border-slate-200 border border-transparent')
+                        : (activeTab === 'profile' || isProfileDropdownOpen ? 'bg-white/10' : 'hover:bg-white/5')
+                    }`}
+                    title={isCollapsed ? user?.name : ''}
+                >
+                    <div className="w-8 h-8 rounded-full bg-slate-600 border border-slate-400 flex items-center justify-center text-xs font-bold text-white relative shrink-0 shadow-inner overflow-hidden">
+                        {user?.avatarUrl ? (
+                            <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                        ) : (
+                            user?.name.charAt(0).toUpperCase()
+                        )}
+                        <div className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 rounded-full border border-slate-600 z-10"></div>
+                    </div>
+                    {!isCollapsed && (
+                      <div className="min-w-0 flex flex-col justify-center text-left">
+                          <p className={`text-sm font-bold transition-colors leading-tight truncate ${interfaceTheme.uiStyle === 'windows' ? 'text-slate-700 group-hover:text-[#0e7490]' : 'text-white group-hover:text-solutium-yellow'}`}>{user?.name}</p>
+                          <p className={`text-[10px] font-medium leading-tight mt-0.5 truncate ${interfaceTheme.uiStyle === 'windows' ? 'text-slate-400' : 'text-white/70'}`}>{user?.email}</p>
+                      </div>
+                    )}
+                </div>
+            </div>
+          </div>
+      </aside>
+
             {/* Profile Options Popover (Collapsed Sidebar) */}
             <AnimatePresence>
-                {isSidebarCollapsed && isProfileDropdownOpen && (
+                {isCollapsed && isProfileDropdownOpen && (
                     <motion.div 
                         initial={{ opacity: 0, scale: 0.95, x: -10 }}
                         animate={{ opacity: 1, scale: 1, x: 0 }}
@@ -592,7 +733,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
                                 }}
                                 className="w-full flex items-center space-x-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors font-medium"
                             >
-                                <Icons.User className="w-4 h-4" />
+                                {isColoredIcons ? (
+                                    <Icons.ElaborateUser className="w-4 h-4" />
+                                ) : (
+                                    <Icons.User className="w-4 h-4" />
+                                )}
                                 <span>Mi Perfil</span>
                             </button>
                             <div className="h-px bg-slate-100 my-1"></div>
@@ -607,19 +752,14 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
                                 <span>{t.signOut}</span>
                             </button>
                         </div>
+                        
+                        {/* Version Display for Collapsed Popover */}
+                        <div className="px-4 py-1.5 bg-slate-50 border-t border-slate-100 flex justify-center">
+                            <VersionDisplay className="text-slate-400 hover:text-slate-600" />
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
-
-            {/* Version Display */}
-            {!isSidebarCollapsed && (
-              <div className={`mt-3 pt-2 ${interfaceTheme.uiStyle === 'windows' ? 'border-t border-slate-200' : 'border-t border-white/5'} flex justify-center`}>
-                  <VersionDisplay className={interfaceTheme.uiStyle === 'windows' ? 'text-slate-400 hover:text-slate-600' : 'text-white/30 hover:text-white/60'} />
-              </div>
-            )}
-          </div>
-        </div>
-      </aside>
 
       <ManageProjectsModal 
         isOpen={isManageProjectsModalOpen} 
@@ -636,7 +776,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
 
       {isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-solutium-dark/80 z-10 md:hidden backdrop-blur-sm"
+          className="fixed inset-0 bg-solutium-dark/80 z-10 xl:hidden backdrop-blur-sm"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}

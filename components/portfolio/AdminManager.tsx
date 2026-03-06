@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ServiceApp } from '../../types';
+import { ServiceApp, TagDefinition } from '../../types';
 import { Icons } from '../../constants';
 import { Button } from '../Button';
 import { Input } from '../Input';
@@ -15,6 +15,7 @@ interface AdminManagerProps {
   onUpdateApp: (updatedApp: ServiceApp) => void;
   onUnregister?: (appId: string) => void;
   t: any;
+  backLabel?: string;
 }
 
 export const AdminManager: React.FC<AdminManagerProps> = ({ 
@@ -22,7 +23,7 @@ export const AdminManager: React.FC<AdminManagerProps> = ({
   onClose, 
   onUpdateApp, 
   onUnregister,
-  t 
+  backLabel
 }) => {
   const { showNotification } = useNotification();
   const { user, currentProject, customers, products } = useAuth();
@@ -32,12 +33,70 @@ export const AdminManager: React.FC<AdminManagerProps> = ({
   ]);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [bootObserverEnabled, setBootObserverEnabled] = useState(true);
+  const [sipEnabled, setSipEnabled] = useState(true);
+  const [customTags, setCustomTags] = useState<TagDefinition[]>([]);
+  const [newTag, setNewTag] = useState({ label: '', desc: '', color: 'bg-slate-100 text-slate-600' });
+  const [isAddingTag, setIsAddingTag] = useState(false);
 
   useEffect(() => {
     checkConnection();
-    const custom = storageService.getAppCustomizations(app.id);
-    setBootObserverEnabled(custom.enableBootObserver ?? true);
+    const loadCustomizations = () => {
+      const custom = storageService.getAppCustomizations(app.id);
+      setBootObserverEnabled(custom.enableBootObserver ?? true);
+      setSipEnabled(custom.sipEnabled !== false);
+    };
+    
+    loadCustomizations();
+    setCustomTags(storageService.getCustomTags());
+
+    // Listen for updates from other components (e.g. ExpandableDataMatrix)
+    const handleStorageUpdate = () => loadCustomizations();
+    window.addEventListener('satellite-storage-update', handleStorageUpdate);
+    
+    return () => {
+      window.removeEventListener('satellite-storage-update', handleStorageUpdate);
+    };
   }, [app.url, app.id]);
+
+  const handleAddTag = () => {
+    if (!newTag.label) return;
+    const tagId = newTag.label.toLowerCase().replace(/\s+/g, '_');
+    const tag: TagDefinition = {
+      id: tagId,
+      label: newTag.label,
+      desc: newTag.desc,
+      color: newTag.color,
+      isCustom: true
+    };
+    storageService.addCustomTag(tag);
+    setCustomTags([...customTags, tag]);
+    setNewTag({ label: '', desc: '', color: 'bg-slate-100 text-slate-600' });
+    setIsAddingTag(false);
+  };
+
+  const handleDeleteTag = (tagId: string) => {
+    if (window.confirm('¿Eliminar esta etiqueta personalizada?')) {
+      storageService.removeCustomTag(tagId);
+      setCustomTags(customTags.filter(t => t.id !== tagId));
+      // Also remove from app if applied
+      if ((app.tags || []).includes(tagId)) {
+        const newTags = (app.tags || []).filter(t => t !== tagId);
+        const updatedApp = { ...app, tags: newTags };
+        onUpdateApp(updatedApp);
+        storageService.setAppTags(app.id, newTags);
+      }
+    }
+  };
+
+  const defaultTags: TagDefinition[] = [
+    { id: 'beta', label: 'Beta', desc: 'Versión de prueba, puede contener errores.', color: 'bg-yellow-100 text-yellow-800' },
+    { id: 'coming_soon', label: 'Próximamente', desc: 'Anuncio de lanzamiento futuro.', color: 'bg-slate-100 text-slate-600' },
+    { id: 'new', label: 'Nueva', desc: 'Destaca lanzamientos recientes.', color: 'bg-green-100 text-green-800' },
+    { id: 'maintenance', label: 'Mantenimiento', desc: 'Indica que la app está en reparación.', color: 'bg-red-100 text-red-800' },
+    { id: 'pro', label: 'Premium', desc: 'Requiere suscripción avanzada.', color: 'bg-indigo-100 text-indigo-800' }
+  ];
+
+  const allTags = [...defaultTags, ...customTags];
 
   const handleLaunchApp = () => {
     if (!user || !currentProject) return;
@@ -209,57 +268,58 @@ export const AdminManager: React.FC<AdminManagerProps> = ({
     }
   };
 
-  const availableScopes = [
-    { id: 'profile', label: t.scopeProfile },
-    { id: 'crm', label: t.scopeCRM },
-    { id: 'invoices', label: t.scopeInvoices },
-    { id: 'calendar', label: t.scopeCalendar },
-  ];
-
-  const toggleScope = (id: string) => {
-    const currentScopes = app.scopes || [];
-    const newScopes = currentScopes.includes(id)
-      ? currentScopes.filter(s => s !== id)
-      : [...currentScopes, id];
-    
-    const updatedApp = { ...app, scopes: newScopes };
-    onUpdateApp(updatedApp);
-    storageService.setAppScopes(app.id, newScopes);
-  };
-
   const handleDescriptionChange = (val: string) => {
     const updatedApp = { ...app, description: val };
     onUpdateApp(updatedApp);
     storageService.setAppDescription(app.id, val);
+    window.dispatchEvent(new Event('satellite-storage-update'));
   };
 
   const handleLogoChange = (val: string) => {
     const updatedApp = { ...app, logoUrl: val };
     onUpdateApp(updatedApp);
     storageService.setAppLogo(app.id, val);
+    window.dispatchEvent(new Event('satellite-storage-update'));
+  };
+
+  const handleIsoChange = (val: string) => {
+    const updatedApp = { ...app, isoUrl: val };
+    onUpdateApp(updatedApp);
+    storageService.setAppIso(app.id, val);
+    window.dispatchEvent(new Event('satellite-storage-update'));
+  };
+
+  const handleFileRead = (file: File, callback: (base64: string) => void) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      callback(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleStatusChange = (status: string) => {
     const updatedApp = { ...app, lifecycleStatus: status as any };
     onUpdateApp(updatedApp);
     storageService.setAppStatus(app.id, status);
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const url = event.target?.result as string;
-        handleLogoChange(url);
-      };
-      reader.readAsDataURL(e.target.files[0]);
-    }
+    window.dispatchEvent(new Event('satellite-storage-update'));
   };
 
   const handleBootObserverToggle = () => {
     const newValue = !bootObserverEnabled;
     setBootObserverEnabled(newValue);
     storageService.setAppBootObserver(app.id, newValue);
+    window.dispatchEvent(new Event('satellite-storage-update'));
+  };
+
+  const handleSipToggle = () => {
+    const newValue = !sipEnabled;
+    setSipEnabled(newValue);
+    storageService.setAppSipEnabled(app.id, newValue);
+    const updatedApp = { ...app, sipEnabled: newValue };
+    onUpdateApp(updatedApp);
+    
+    // Dispatch event to notify other components (like ExpandableDataMatrix)
+    window.dispatchEvent(new Event('satellite-storage-update'));
   };
 
   const isWebConstructor = app.id === 'web-constructor';
@@ -280,11 +340,8 @@ export const AdminManager: React.FC<AdminManagerProps> = ({
           </div>
         </div>
         <div className="flex items-center space-x-3">
-          <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold uppercase tracking-widest">
-            {app.lifecycleStatus}
-          </span>
           <Button variant="secondary" onClick={onClose}>
-            Volver al Portafolio
+            {backLabel || 'Volver al Portafolio'}
           </Button>
         </div>
       </header>
@@ -303,27 +360,6 @@ export const AdminManager: React.FC<AdminManagerProps> = ({
                   onChange={(e) => handleDescriptionChange(e.target.value)}
               />
 
-              <div className="pt-4 border-t border-slate-100">
-                  <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-tight">Permisos de Datos (Scopes)</label>
-                  <p className="text-xs text-slate-500 mb-4">Selecciona a qué datos del proyecto puede acceder esta aplicación.</p>
-                  <div className="grid grid-cols-2 gap-2">
-                      {availableScopes.map(scope => (
-                          <label key={scope.id} className={`flex items-center p-2 rounded-lg border cursor-pointer transition-all ${(app.scopes || []).includes(scope.id) ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
-                              <input 
-                                  type="checkbox" 
-                                  className="hidden" 
-                                  checked={(app.scopes || []).includes(scope.id)}
-                                  onChange={() => toggleScope(scope.id)}
-                              />
-                              <div className={`w-3 h-3 rounded-sm mr-2 flex items-center justify-center border ${(app.scopes || []).includes(scope.id) ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300'}`}>
-                                  {(app.scopes || []).includes(scope.id) && <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                              </div>
-                              <span className="text-[10px] font-bold">{scope.label}</span>
-                          </label>
-                      ))}
-                  </div>
-              </div>
-              
               <div className="pt-4 border-t border-slate-100">
                   <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-tight">Experiencia de Arranque</label>
                   <p className="text-xs text-slate-500 mb-4">Controla cómo se muestra la transferencia de datos al abrir la aplicación.</p>
@@ -346,34 +382,229 @@ export const AdminManager: React.FC<AdminManagerProps> = ({
               </div>
 
               <div className="pt-4 border-t border-slate-100">
-                  <label className="block text-sm font-bold text-slate-700 mb-4 uppercase tracking-tight">Logo del Satélite</label>
-                  <div className="flex gap-6 items-start">
-                      <div className={`w-24 h-24 rounded-xl flex items-center justify-center overflow-hidden shrink-0 ${app.logoUrl ? 'bg-transparent' : 'border-2 border-dashed border-slate-200 bg-slate-50'}`}>
-                          {app.logoUrl ? (
-                              <img src={app.logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
-                          ) : (
-                              <Icons.Code className="w-8 h-8 text-slate-300" />
-                          )}
-                      </div>
-                      <div className="flex-1 space-y-3">
-                          <Input 
-                              label="URL del Logo" 
-                              value={app.logoUrl || ''} 
-                              placeholder="https://ejemplo.com/logo.png"
-                              onChange={(e) => handleLogoChange(e.target.value)}
-                          />
-                          <div className="flex items-center">
-                              <label className="cursor-pointer bg-slate-100 border border-slate-300 rounded-lg px-4 py-2 text-xs font-bold hover:bg-slate-200 text-slate-600 transition-colors">
-                                  Subir Imagen
-                                  <input 
-                                      type="file" 
-                                      className="hidden" 
-                                      accept="image/*"
-                                      onChange={handleFileUpload} 
-                                  />
-                              </label>
+                  <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-tight">Etiquetas de la Aplicación</label>
+                  <p className="text-xs text-slate-500 mb-4">Gestiona las etiquetas visibles para esta aplicación.</p>
+                  
+                  <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                        <tr>
+                          <th className="px-4 py-2 w-10"></th>
+                          <th className="px-4 py-2">Etiqueta</th>
+                          <th className="px-4 py-2">Descripción</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {allTags.map(tag => (
+                          <tr key={tag.id} className="hover:bg-white transition-colors">
+                            <td className="px-4 py-3 text-center">
+                              <input 
+                                type="checkbox" 
+                                checked={(app.tags || []).includes(tag.id)}
+                                onChange={() => {
+                                  const currentTags = app.tags || [];
+                                  const newTags = currentTags.includes(tag.id)
+                                    ? currentTags.filter(t => t !== tag.id)
+                                    : [...currentTags, tag.id];
+                                  const updatedApp = { ...app, tags: newTags };
+                                  onUpdateApp(updatedApp);
+                                  storageService.setAppTags(app.id, newTags);
+                                }}
+                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                            </td>
+                            <td className="px-4 py-3 font-medium">
+                              <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${tag.color}`}>
+                                {tag.label}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-slate-500 text-xs">{tag.desc}</td>
+                            <td className="px-4 py-3 text-center">
+                              {tag.isCustom && (
+                                <button 
+                                  onClick={() => handleDeleteTag(tag.id)}
+                                  className="text-slate-400 hover:text-red-500 transition-colors"
+                                  title="Eliminar etiqueta"
+                                >
+                                  <Icons.Trash className="w-4 h-4" />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    
+                    <div className="p-3 bg-slate-50 border-t border-slate-200">
+                      {!isAddingTag ? (
+                        <button 
+                          onClick={() => setIsAddingTag(true)}
+                          className="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 text-xs font-bold hover:border-indigo-300 hover:text-indigo-600 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Icons.Plus className="w-4 h-4" />
+                          Crear Nueva Etiqueta
+                        </button>
+                      ) : (
+                        <div className="space-y-3 p-2 bg-white rounded border border-slate-200 animate-fadeIn">
+                          <div className="grid grid-cols-2 gap-3">
+                            <Input 
+                              label="Nombre" 
+                              value={newTag.label} 
+                              onChange={(e) => setNewTag({...newTag, label: e.target.value})}
+                              placeholder="Ej: Oferta"
+                              className="text-xs"
+                            />
+                            <div>
+                              <label className="block text-xs font-bold text-slate-700 mb-1">Color</label>
+                              <select 
+                                value={newTag.color}
+                                onChange={(e) => setNewTag({...newTag, color: e.target.value})}
+                                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                              >
+                                <option value="bg-slate-100 text-slate-600">Gris (Default)</option>
+                                <option value="bg-red-100 text-red-800">Rojo (Alerta)</option>
+                                <option value="bg-yellow-100 text-yellow-800">Amarillo (Warning)</option>
+                                <option value="bg-green-100 text-green-800">Verde (Success)</option>
+                                <option value="bg-blue-100 text-blue-800">Azul (Info)</option>
+                                <option value="bg-indigo-100 text-indigo-800">Indigo (Pro)</option>
+                                <option value="bg-purple-100 text-purple-800">Púrpura (Special)</option>
+                                <option value="bg-pink-100 text-pink-800">Rosa (Fun)</option>
+                              </select>
+                            </div>
                           </div>
-                      </div>
+                          <Input 
+                            label="Descripción" 
+                            value={newTag.desc} 
+                            onChange={(e) => setNewTag({...newTag, desc: e.target.value})}
+                            placeholder="Breve descripción para uso interno"
+                            className="text-xs"
+                          />
+                          <div className="flex justify-end gap-2 pt-2">
+                            <button 
+                              onClick={() => setIsAddingTag(false)}
+                              className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700"
+                            >
+                              Cancelar
+                            </button>
+                            <button 
+                              onClick={handleAddTag}
+                              disabled={!newTag.label}
+                              className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded hover:bg-indigo-700 disabled:opacity-50"
+                            >
+                              Guardar Etiqueta
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100">
+                  <label className="block text-sm font-bold text-slate-700 mb-4 uppercase tracking-tight">Identidad Visual del Satélite</label>
+                  
+                  <div className="grid grid-cols-1 gap-6">
+                    {/* Imagotipo (Logo + Texto) - 2:1 Relation */}
+                    <div className="p-5 bg-slate-50 rounded-xl border border-slate-100 space-y-4">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-1">
+                            <label className="block text-sm font-bold text-slate-800 uppercase tracking-wider">Imagotipo</label>
+                            <p className="text-[10px] text-slate-500 max-w-[200px]">Versión completa (Logo + Nombre). Se usa en el panel expandido.</p>
+                          </div>
+                          <div className={`w-32 aspect-[2/1] rounded-lg flex items-center justify-center overflow-hidden shadow-sm border ${app.logoUrl ? 'bg-white border-slate-200' : 'border-2 border-dashed border-slate-200 bg-slate-100'}`}>
+                              {app.logoUrl ? (
+                                  <img src={app.logoUrl} alt="Imagotipo" className="w-full h-full object-contain p-2" />
+                              ) : (
+                                  <div className="flex flex-col items-center opacity-20">
+                                    <Icons.Code className="w-5 h-5" />
+                                    <span className="text-[8px] font-bold mt-1">2:1</span>
+                                  </div>
+                              )}
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-200/50">
+                          <div className="space-y-1.5">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">URL del Imagotipo</span>
+                            <Input 
+                                label="" 
+                                value={app.logoUrl || ''} 
+                                placeholder="https://..."
+                                onChange={(e) => handleLogoChange(e.target.value)}
+                                className="text-xs h-9"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">Subir Archivo</span>
+                            <div className="relative">
+                              <input 
+                                type="file" 
+                                accept="image/*"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleFileRead(file, handleLogoChange);
+                                }}
+                              />
+                              <div className="flex items-center justify-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white hover:border-indigo-400 hover:bg-indigo-50 transition-all text-xs font-bold text-slate-500 h-9">
+                                <Icons.Upload className="w-3.5 h-3.5" />
+                                Cargar Imagen
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                    </div>
+
+                    {/* Isotipo (Solo Icono) - 1:1 Relation */}
+                    <div className="p-5 bg-slate-50 rounded-xl border border-slate-100 space-y-4">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-1">
+                            <label className="block text-sm font-bold text-slate-800 uppercase tracking-wider">Isotipo</label>
+                            <p className="text-[10px] text-slate-500 max-w-[200px]">Solo el icono. Se usa en el panel contraído y como favicon.</p>
+                          </div>
+                          <div className={`w-16 aspect-square rounded-lg flex items-center justify-center overflow-hidden shadow-sm border ${app.isoUrl ? 'bg-white border-slate-200' : 'border-2 border-dashed border-slate-200 bg-slate-100'}`}>
+                              {app.isoUrl ? (
+                                  <img src={app.isoUrl} alt="Isotipo" className="w-full h-full object-contain p-2" />
+                              ) : (
+                                  <div className="flex flex-col items-center opacity-20">
+                                    <Icons.Box className="w-5 h-5" />
+                                    <span className="text-[8px] font-bold mt-1">1:1</span>
+                                  </div>
+                              )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-200/50">
+                          <div className="space-y-1.5">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">URL del Isotipo</span>
+                            <Input 
+                                label="" 
+                                value={app.isoUrl || ''} 
+                                placeholder="https://..."
+                                onChange={(e) => handleIsoChange(e.target.value)}
+                                className="text-xs h-9"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">Subir Archivo</span>
+                            <div className="relative">
+                              <input 
+                                type="file" 
+                                accept="image/*"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleFileRead(file, handleIsoChange);
+                                }}
+                              />
+                              <div className="flex items-center justify-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white hover:border-indigo-400 hover:bg-indigo-50 transition-all text-xs font-bold text-slate-500 h-9">
+                                <Icons.Upload className="w-3.5 h-3.5" />
+                                Cargar Icono
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                    </div>
                   </div>
               </div>
 
@@ -390,9 +621,16 @@ export const AdminManager: React.FC<AdminManagerProps> = ({
                       <Icons.ExternalLink className="w-3 h-3" />
                       Lanzar Satélite
                    </button>
-                   <div className="w-12 h-6 bg-green-500 rounded-full relative">
-                      <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
-                   </div>
+                   
+                   <label className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${sipEnabled ? 'bg-green-500' : 'bg-slate-300'}`}>
+                      <input 
+                        type="checkbox" 
+                        className="sr-only" 
+                        checked={sipEnabled}
+                        onChange={handleSipToggle}
+                      />
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${sipEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                   </label>
                 </div>
               </div>
             </div>

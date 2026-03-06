@@ -58,7 +58,7 @@ async function startServer() {
   } else {
     // Production static serving
     app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*", (_req, res) => {
+    app.get("(.*)", (_req, res) => {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
   }
