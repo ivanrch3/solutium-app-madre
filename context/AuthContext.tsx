@@ -113,55 +113,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .eq('id', session.user.id)
             .single();
           
-          if (profile) {
-            // Fetch projects for this user
-            const { data: projectsData } = await supabase
-              .from('projects')
-              .select('*')
-              .eq('owner_id', session.user.id);
-            
-            const mappedProjects: Project[] = (projectsData || []).map(p => ({
-              id: p.id,
-              name: p.name,
-              brandColors: p.brand_colors,
-              logoUrl: p.logo_url,
-              contactInfo: p.contact_info,
+          // If profile doesn't exist (common for new OAuth users), we use session metadata
+          const userFullName = profile?.full_name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuario';
+          const userRole = profile?.role || (session.user.email === 'admin@solutium.app' ? 'admin' : 'user');
+          const userLanguage = profile?.language || 'es';
+          const userSubscription = profile?.subscription_tier || 'free';
+
+          // Fetch projects for this user
+          const { data: projectsData } = await supabase
+            .from('projects')
+            .select('*')
+            .eq('owner_id', session.user.id);
+          
+          let mappedProjects: Project[] = (projectsData || []).map(p => ({
+            id: p.id,
+            name: p.name,
+            brandColors: p.brand_colors,
+            logoUrl: p.logo_url,
+            contactInfo: p.contact_info,
+            socials: [],
+            installedAppIds: [],
+            assignedMemberIds: [],
+            createdAt: new Date(p.created_at).getTime(),
+            products: []
+          }));
+
+          // If user has no projects (new user), create a default one locally for now
+          // In a real app, you might want to create this in Supabase via an edge function or here
+          if (mappedProjects.length === 0) {
+            mappedProjects = [{
+              id: crypto.randomUUID(),
+              name: 'Mi Primer Proyecto',
+              industry: 'Otro',
+              brandColors: ['#3b82f6', '#1d4ed8'],
               socials: [],
               installedAppIds: [],
               assignedMemberIds: [],
-              createdAt: new Date(p.created_at).getTime(),
+              createdAt: Date.now(),
               products: []
-            }));
-
-            const fullUser: UserProfile = {
-              id: session.user.id,
-              name: profile.full_name || session.user.email?.split('@')[0] || 'Usuario',
-              email: session.user.email || '',
-              role: profile.role as UserRole || (session.user.email === 'admin@solutium.app' ? 'admin' : 'user'),
-              language: profile.language || 'es',
-              subscriptionPlan: profile.subscription_tier || 'free',
-              projects: mappedProjects,
-              teamMembers: [],
-              onboardingCompleted: true,
-              uiStyle: 'windows',
-              fontFamily: 'Inter',
-              baseSize: '16px',
-              borderRadius: '0.5rem',
-              themePreference: 'default',
-              activeTheme: 'fluent-light',
-            };
-
-            setUser(fullUser);
-            if (fullUser.language) setLanguageState(fullUser.language as Language);
-            
-            if (mappedProjects.length > 0) {
-              const lastProjectId = storageService.getLastProjectId();
-              const projectToLoad = mappedProjects.find(p => p.id === lastProjectId) || mappedProjects[0];
-              setCurrentProject(projectToLoad);
-            }
-            setIsLoading(false);
-            return;
+            }];
           }
+
+          const fullUser: UserProfile = {
+            id: session.user.id,
+            name: userFullName,
+            email: session.user.email || '',
+            role: userRole as UserRole,
+            language: userLanguage,
+            subscriptionPlan: userSubscription,
+            projects: mappedProjects,
+            teamMembers: [],
+            onboardingCompleted: true,
+            uiStyle: 'windows',
+            fontFamily: 'Inter',
+            baseSize: '16px',
+            borderRadius: '0.5rem',
+            themePreference: 'default',
+            activeTheme: 'fluent-light',
+          };
+
+          setUser(fullUser);
+          if (fullUser.language) setLanguageState(fullUser.language as Language);
+          
+          if (mappedProjects.length > 0) {
+            const lastProjectId = storageService.getLastProjectId();
+            const projectToLoad = mappedProjects.find(p => p.id === lastProjectId) || mappedProjects[0];
+            setCurrentProject(projectToLoad);
+          }
+          setIsLoading(false);
+          return;
         }
       } catch (error) {
         console.warn('Supabase session check failed, falling back to local storage', error);
