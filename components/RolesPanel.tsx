@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-type Permission = 'manage_users' | 'manage_billing' | 'manage_apps' | 'view_analytics' | 'edit_content' | 'view_content' | 'manage_settings';
+type Permission = 
+  | 'manage_users' 
+  | 'manage_billing' 
+  | 'manage_apps' 
+  | 'manage_infrastructure' 
+  | 'manage_master_keys' 
+  | 'manage_projects' 
+  | 'manage_constitution' 
+  | 'view_analytics';
+
 type Role = 'super_admin' | 'product_manager' | 'developer' | 'editor' | 'viewer' | 'support';
 
 interface RolePermissions {
@@ -12,22 +21,22 @@ interface RolePermissions {
 
 const defaultPermissions: RolePermissions = {
   super_admin: {
-    manage_users: true, manage_billing: true, manage_apps: true, view_analytics: true, edit_content: true, view_content: true, manage_settings: true
+    manage_users: true, manage_billing: true, manage_apps: true, manage_infrastructure: true, manage_master_keys: true, manage_projects: true, manage_constitution: true, view_analytics: true
   },
   product_manager: {
-    manage_users: false, manage_billing: false, manage_apps: true, view_analytics: true, edit_content: true, view_content: true, manage_settings: true
+    manage_users: false, manage_billing: false, manage_apps: true, manage_infrastructure: false, manage_master_keys: false, manage_projects: true, manage_constitution: true, view_analytics: true
   },
   developer: {
-    manage_users: false, manage_billing: false, manage_apps: true, view_analytics: true, edit_content: true, view_content: true, manage_settings: false
+    manage_users: false, manage_billing: false, manage_apps: true, manage_infrastructure: true, manage_master_keys: true, manage_projects: false, manage_constitution: false, view_analytics: true
   },
   editor: {
-    manage_users: false, manage_billing: false, manage_apps: false, view_analytics: false, edit_content: true, view_content: true, manage_settings: false
+    manage_users: false, manage_billing: false, manage_apps: false, manage_infrastructure: false, manage_master_keys: false, manage_projects: true, manage_constitution: false, view_analytics: false
   },
   viewer: {
-    manage_users: false, manage_billing: false, manage_apps: false, view_analytics: false, edit_content: false, view_content: true, manage_settings: false
+    manage_users: false, manage_billing: false, manage_apps: false, manage_infrastructure: false, manage_master_keys: false, manage_projects: false, manage_constitution: false, view_analytics: true
   },
   support: {
-    manage_users: false, manage_billing: false, manage_apps: false, view_analytics: true, edit_content: false, view_content: true, manage_settings: false
+    manage_users: true, manage_billing: false, manage_apps: false, manage_infrastructure: false, manage_master_keys: false, manage_projects: false, manage_constitution: false, view_analytics: true
   }
 };
 
@@ -35,10 +44,11 @@ const permissionLabels: Record<Permission, { es: string, en: string }> = {
   manage_users: { es: 'Gestionar Usuarios', en: 'Manage Users' },
   manage_billing: { es: 'Gestionar Facturación', en: 'Manage Billing' },
   manage_apps: { es: 'Gestionar Aplicaciones', en: 'Manage Apps' },
-  view_analytics: { es: 'Ver Estadísticas', en: 'View Analytics' },
-  edit_content: { es: 'Editar Contenido', en: 'Edit Content' },
-  view_content: { es: 'Ver Contenido', en: 'View Content' },
-  manage_settings: { es: 'Gestionar Configuración', en: 'Manage Settings' }
+  manage_infrastructure: { es: 'Infraestructura (Despliegue)', en: 'Infrastructure (Deployment)' },
+  manage_master_keys: { es: 'Llaves Maestras (API Keys)', en: 'Master Keys (API Keys)' },
+  manage_projects: { es: 'Gestionar Proyectos', en: 'Manage Projects' },
+  manage_constitution: { es: 'Editar Constitución', en: 'Edit Constitution' },
+  view_analytics: { es: 'Ver Estadísticas', en: 'View Analytics' }
 };
 
 const roleLabels: Record<Role, { es: string, en: string }> = {
@@ -70,8 +80,9 @@ export const RolesPanel: React.FC = () => {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div className="p-6 md:p-8">
-        <h3 className="text-xl font-bold text-slate-800 mb-6">
+        <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
           {currentLang === 'es' ? 'Roles y Permisos' : 'Roles & Permissions'}
+          <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full uppercase tracking-wider">Actualizado</span>
         </h3>
         <p className="text-slate-600 mb-8">
           {currentLang === 'es' 

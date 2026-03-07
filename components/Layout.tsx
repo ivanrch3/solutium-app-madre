@@ -151,7 +151,9 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
     { id: 'dashboard', label: t.dashboard, icon: isColoredIcons ? Icons.ElaborateGem : Icons.Gem, color: 'text-amber-500' },
   ];
 
-  if (user?.role === ('admin' as any)) {
+  const isAdmin = user?.role && ['admin', 'super_admin', 'product_manager', 'developer', 'editor', 'viewer', 'support'].includes(user.role);
+
+  if (isAdmin) {
     // Integrations moved to My Apps > Integrations tab
     navItems.push({ id: 'administration', label: t.administration || 'Administración', icon: isColoredIcons ? Icons.ElaborateSettings : Icons.Settings, color: 'text-slate-500' });
     navItems.push({ id: 'statistics', label: t.statistics || 'Estadísticas', icon: isColoredIcons ? Icons.ElaborateActivity : Icons.Activity, color: 'text-rose-500' });
@@ -208,7 +210,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onNavigate }) => {
   const handleCreateProjectClick = (e: React.MouseEvent) => {
       e.stopPropagation();
       
-      if (user?.role === ('admin' as any)) {
+      const isMasterAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+      if (isMasterAdmin) {
           alert(currentLang === 'es' ? "La cuenta maestra no puede crear proyectos adicionales." : "The master account cannot create additional projects.");
           return;
       }

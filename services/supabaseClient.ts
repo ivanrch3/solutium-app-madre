@@ -1,7 +1,22 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+let supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+let supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Fallback logic for when the user accidentally swapped them or put the key in the URL field
+if (supabaseUrl && supabaseUrl.startsWith('sb_publishable_')) {
+  // If they put the key in the URL field, use it as the key and use the provided URL
+  supabaseAnonKey = supabaseUrl;
+  supabaseUrl = 'https://zzysjtxnbzquufajtqgf.supabase.co';
+} else if (!supabaseUrl || supabaseUrl === 'undefined') {
+  // Use the provided URL as fallback
+  supabaseUrl = 'https://zzysjtxnbzquufajtqgf.supabase.co';
+}
+
+if (!supabaseAnonKey || supabaseAnonKey === 'undefined') {
+  // Use the previously provided key as fallback
+  supabaseAnonKey = 'sb_publishable_xRcHQF7DzFodW_QMYCEeXQ_V8Y2nkVD';
+}
 
 // Helper to validate URL
 const isValidUrl = (url: string | undefined): boolean => {

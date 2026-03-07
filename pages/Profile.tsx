@@ -4,14 +4,17 @@ import { useNavigation } from '../context/NavigationContext';
 import { Input } from '../components/Input';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { Tabs } from '../components/Tabs';
+import { InvitationPanel } from '../components/InvitationPanel';
+import { TeamManagementPanel } from '../components/TeamManagementPanel';
 import { SOLUTIUM_THEMES, SOLUTIUM_COLORS } from '../src/themes';
 import { ThemeName, ImageLocation, ImageMapping } from '../types';
 import { Icons, BRAND_IMAGES, DEFAULT_IMAGE_MAPPING } from '../constants';
 
 const Profile: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNavigate }) => {
-  const { user, updateProfile, t, setLanguage, currentLang, addTeamMember, removeTeamMember, currentProject, updateProject, previewProjectUpdate, deleteProject, duplicateProject, switchProject } = useAuth();
+  const { user, updateProfile, t, setLanguage, currentLang, currentProject, updateProject, previewProjectUpdate, deleteProject, duplicateProject, switchProject } = useAuth();
   const { setHasUnsavedChanges } = useNavigation();
   const [activeTab, setActiveTab] = useState<'general' | 'preferences' | 'team' | 'identidad' | 'administrar'>('general');
+  const [teamSubTab, setTeamSubTab] = useState<'invitations' | 'roles'>('invitations');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
@@ -101,10 +104,6 @@ const Profile: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNavigate }
   };
 
   // Team Form State
-  const [newMemberName, setNewMemberName] = useState('');
-  const [newMemberEmail, setNewMemberEmail] = useState('');
-  const [newMemberRole, setNewMemberRole] = useState<'editor' | 'viewer' | 'super_admin' | 'support' | 'product_manager' | 'developer'>('editor');
-
   const [isSaved, setIsSaved] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
@@ -147,17 +146,7 @@ const Profile: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNavigate }
     setTimeout(() => setIsSaved(false), 3000);
   };
 
-  const handleAddMember = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newMemberName && newMemberEmail) {
-        const success = addTeamMember(newMemberName, newMemberEmail, newMemberRole);
-        if (success) {
-            setNewMemberName('');
-            setNewMemberEmail('');
-            setNewMemberRole('editor');
-        }
-    }
-  };
+  const isAdmin = user?.role && ['admin', 'super_admin', 'product_manager', 'developer', 'editor', 'viewer', 'support'].includes(user.role);
 
   return (
     <>
@@ -170,11 +159,11 @@ const Profile: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNavigate }
       <Tabs 
         options={[
           { id: 'general', label: t.generalTab || 'Perfil' },
-          ...(user?.role === ('admin' as any) ? [
-            { id: 'identidad', label: t.identityTab || 'Identidad' }
+          ...(isAdmin ? [
+            { id: 'identidad', label: t.identityTab || 'Identidad' },
+            { id: 'team', label: t.teamTab || 'Equipo' }
           ] : []),
-          { id: 'team', label: t.teamTab || 'Equipo' },
-          ...(user?.role !== ('admin' as any) ? [
+          ...(!isAdmin ? [
             { id: 'preferences', label: t.preferencesTab || 'Preferencias' },
             { id: 'administrar', label: 'Administrar' }
           ] : [])
@@ -585,111 +574,19 @@ const Profile: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNavigate }
             </div>
         </div>
       ) : activeTab === 'team' ? (
-        <div className="space-y-8">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                    <div>
-                        <h3 className="font-bold text-slate-900">{t.teamManagement}</h3>
-                        <p className="text-xs text-slate-500 mt-1">{t.teamDesc}</p>
-                    </div>
-                    <span className="text-xs font-bold bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full">
-                        {user?.teamMembers?.length || 0} / {user?.subscriptionPlan === 'free' ? '3' : '∞'}
-                    </span>
-                </div>
-                
-                <div className="p-6">
-                    {/* Add Member Form */}
-                    <form onSubmit={handleAddMember} className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-8">
-                        <h4 className="text-sm font-bold text-slate-700 mb-4 uppercase tracking-wider">{t.addMember}</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                            <div className="md:col-span-4">
-                                <Input 
-                                    label={t.memberName}
-                                    value={newMemberName}
-                                    onChange={(e) => setNewMemberName(e.target.value)}
-                                    placeholder={t.phNameAuth}
-                                    className="bg-white"
-                                />
-                            </div>
-                            <div className="md:col-span-4">
-                                <Input 
-                                    label={t.memberEmail}
-                                    type="email"
-                                    value={newMemberEmail}
-                                    onChange={(e) => setNewMemberEmail(e.target.value)}
-                                    placeholder={t.phEmail}
-                                    className="bg-white"
-                                />
-                            </div>
-                            <div className="md:col-span-2">
-                                <label className="block text-sm font-medium text-slate-700 mb-1">{t.memberRole}</label>
-                                <select 
-                                    value={newMemberRole}
-                                    onChange={(e) => setNewMemberRole(e.target.value as any)}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-solutium-blue outline-none"
-                                >
-                                    <option value="editor">Editor</option>
-                                    <option value="viewer">Viewer</option>
-                                    <option value="support">{t.roleSupport}</option>
-                                    <option value="developer">{t.roleDeveloper}</option>
-                                    <option value="product_manager">{t.roleProductManager}</option>
-                                    {user?.role === 'admin' && <option value="super_admin">{t.roleSuperAdmin}</option>}
-                                </select>
-                            </div>
-                            <div className="md:col-span-2">
-                                <button 
-                                    type="submit"
-                                    disabled={!newMemberName || !newMemberEmail}
-                                    className="w-full px-4 py-2 bg-solutium-blue text-white rounded-lg text-sm font-bold hover:bg-solutium-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                >
-                                    {t.add}
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-
-                    {/* Members List */}
-                    <div className="space-y-4">
-                        {(!user?.teamMembers || user.teamMembers.length === 0) ? (
-                            <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl">
-                                <p className="text-slate-400 text-sm">{t.noMembers}</p>
-                            </div>
-                        ) : (
-                            user.teamMembers.map((member) => (
-                                <div key={member.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl hover:shadow-sm transition-shadow">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
-                                            {member.name.charAt(0)}
-                                        </div>
-                                        <div>
-                                            <h5 className="font-bold text-slate-800 text-sm">{member.name}</h5>
-                                            <p className="text-xs text-slate-500">{member.email}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-6">
-                                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                                            member.role === 'super_admin' ? 'bg-purple-100 text-purple-700' :
-                                            member.role === 'editor' ? 'bg-blue-100 text-blue-700' :
-                                            'bg-slate-100 text-slate-600'
-                                        }`}>
-                                            {member.role.replace('_', ' ')}
-                                        </span>
-                                        <button 
-                                            onClick={() => removeTeamMember(member.id)}
-                                            className="text-slate-400 hover:text-red-500 transition-colors p-2"
-                                            title={t.delete}
-                                        >
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
-            </div>
+        <div className="space-y-8 animate-fadeIn">
+            <Tabs 
+                options={[
+                    { id: 'invitations', label: t.invitationTab || 'Invitaciones' },
+                    { id: 'roles', label: 'Roles' }
+                ]}
+                activeTab={teamSubTab}
+                onChange={(id: string) => setTeamSubTab(id as any)}
+                style="secondary"
+                className="mb-6"
+            />
+            {teamSubTab === 'invitations' && <InvitationPanel />}
+            {teamSubTab === 'roles' && <TeamManagementPanel />}
         </div>
       ) : activeTab === 'administrar' && user?.role !== ('admin' as any) ? (
         <div className="space-y-8 animate-fadeIn">

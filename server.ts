@@ -18,6 +18,7 @@ async function startServer() {
   }
 
   app.use(cors());
+  app.use(express.json());
 
   // API routes
   app.get("/api/health", (_req, res) => {
@@ -45,6 +46,96 @@ async function startServer() {
       timestamp: Date.now(),
       message: "Conexión exitosa con el servidor de prueba"
     });
+  });
+
+  // Admin Invitation API
+  app.post("/api/admin/invite", async (req, res) => {
+    const { email, role, name } = req.body;
+    let supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (supabaseUrl && supabaseUrl.startsWith('sb_publishable_')) {
+      supabaseUrl = 'https://zzysjtxnbzquufajtqgf.supabase.co';
+    } else if (!supabaseUrl || supabaseUrl === 'undefined') {
+      supabaseUrl = 'https://zzysjtxnbzquufajtqgf.supabase.co';
+    }
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      return res.status(500).json({ error: "Supabase configuration missing on server" });
+    }
+
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      });
+
+      const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+        data: { 
+          full_name: name,
+          role: role || 'user'
+        },
+        // Redirect to the app URL after confirmation
+        redirectTo: process.env.APP_URL || "http://localhost:3000"
+      });
+
+      if (error) throw error;
+      res.json({ success: true, data });
+    } catch (error: any) {
+      console.error("Invitation error:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update User Role API
+  app.post("/api/admin/update-role", async (req, res) => {
+    const { userId, newRole } = req.body;
+    let supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (supabaseUrl && supabaseUrl.startsWith('sb_publishable_')) {
+      supabaseUrl = 'https://zzysjtxnbzquufajtqgf.supabase.co';
+    } else if (!supabaseUrl || supabaseUrl === 'undefined') {
+      supabaseUrl = 'https://zzysjtxnbzquufajtqgf.supabase.co';
+    }
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      return res.status(500).json({ error: "Supabase configuration missing on server" });
+    }
+
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      });
+
+      // Update the role in the profiles table
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .update({ role: newRole })
+        .eq('id', userId);
+
+      if (profileError) throw profileError;
+
+      // Also update the role in the auth metadata so it's available on next login
+      const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        { user_metadata: { role: newRole } }
+      );
+
+      if (authError) throw authError;
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Update role error:", error);
+      res.status(400).json({ error: error.message });
+    }
   });
 
   // Vite middleware for development

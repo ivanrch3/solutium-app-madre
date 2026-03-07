@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { UserProfile, Language, Project, TeamMember, ServiceApp, Customer, Product } from '../types';
+import { UserProfile, Language, Project, TeamMember, ServiceApp, Customer, Product, UserRole } from '../types';
 import { SOLUTIUM_COLORS } from '../src/themes';
 import { translations } from '../translations';
 import { useNotification } from './NotificationContext';
@@ -11,7 +11,11 @@ import { AVAILABLE_APPS } from '../constants';
 interface AuthContextType {
   user: UserProfile | null;
   currentProject: Project | null;
-  login: (email: string, name: string) => void;
+  login: (email: string, password?: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  register: (email: string, password: string, name: string) => Promise<void>;
+  inviteUser: (email: string, name: string, role: UserRole) => Promise<void>;
+  updateUserRole: (userId: string, newRole: UserRole) => Promise<void>;
   guestLogin: () => void;
   logout: () => void;
   
@@ -133,7 +137,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               id: session.user.id,
               name: profile.full_name || session.user.email?.split('@')[0] || 'Usuario',
               email: session.user.email || '',
-              role: profile.role || (session.user.email === 'admin@solutium.app' ? 'admin' : 'user'),
+              role: profile.role as UserRole || (session.user.email === 'admin@solutium.app' ? 'admin' : 'user'),
               language: profile.language || 'es',
               subscriptionPlan: profile.subscription_tier || 'free',
               projects: mappedProjects,
@@ -238,6 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Real Supabase Login
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        showNotification('Sesión iniciada con éxito', 'success');
       } else {
         // Legacy/Mock Login for dev or Local Mode
         const isExample = email === '';
@@ -287,7 +292,124 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, [getUserFromDb, language, saveUserToDb, showNotification]);
+  }, [getUserFromDb, language, saveUserToDb, showNotification, localMode]);
+
+  const register = useCallback(async (email: string, password: string, name: string) => {
+    setIsLoading(true);
+    try {
+      if (localMode) {
+        // Mock registration
+        login(email);
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+            role: 'user' // Default role for public registration
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        showNotification('Cuenta creada con éxito. Por favor, verifica tu correo.', 'success');
+        // We don't automatically log in if email verification is required, 
+        // but Supabase often logs in automatically depending on settings.
+      }
+    } catch (error: any) {
+      showNotification(error.message || 'Error al crear la cuenta', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [localMode, login, showNotification]);
+
+  const loginWithGoogle = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      if (localMode) {
+        showNotification('El inicio de sesión con Google no está disponible en Modo Local', 'info');
+        return;
+      }
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        }
+      });
+
+      if (error) throw error;
+      // The page will redirect to Google, so we don't need to do anything else here
+    } catch (error: any) {
+      showNotification(error.message || 'Error al iniciar sesión con Google', 'error');
+      setIsLoading(false);
+    }
+  }, [localMode, showNotification]);
+
+  const inviteUser = useCallback(async (email: string, name: string, role: UserRole) => {
+    setIsLoading(true);
+    try {
+      if (localMode) {
+        showNotification('Invitación simulada enviada (Modo Local)', 'info');
+        return;
+      }
+
+      const response = await fetch('/api/admin/invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, name, role }),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al enviar la invitación');
+      }
+
+      showNotification(`Invitación enviada a ${email} como ${role}`, 'success');
+    } catch (error: any) {
+      showNotification(error.message || 'Error al enviar la invitación', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [localMode, showNotification]);
+
+  const updateUserRole = useCallback(async (userId: string, newRole: UserRole) => {
+    setIsLoading(true);
+    try {
+      if (localMode) {
+        showNotification('Rol actualizado (Modo Local)', 'success');
+        return;
+      }
+
+      const response = await fetch('/api/admin/update-role', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId, newRole }),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al actualizar el rol');
+      }
+
+      showNotification('Rol actualizado correctamente', 'success');
+    } catch (error: any) {
+      showNotification(error.message || 'Error al actualizar el rol', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [localMode, showNotification]);
 
   const guestLogin = useCallback(() => {
     const db = storageService.getUsersDb();
@@ -681,6 +803,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       currentProject, 
       adminHqProject,
       login, 
+      loginWithGoogle,
+      register,
+      inviteUser,
+      updateUserRole,
       guestLogin, 
       logout, 
       updateProfile, 
@@ -716,7 +842,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       deleteProduct,
     };
   }, [
-    user, currentProject, adminHqProject, adminCustomApps, login, guestLogin, logout, updateProfile, duplicateProject,
+    user, currentProject, adminHqProject, adminCustomApps, login, loginWithGoogle, guestLogin, logout, updateProfile, duplicateProject,
     deleteProject, createProject, switchProject, updateProject, toggleProjectMember,
     addTeamMember, removeTeamMember, installApp, uninstallApp, registerCustomApp,
     unregisterCustomApp, setLanguage, t, language, isLoading, localMode, setLocalMode, previewProjectUpdate,

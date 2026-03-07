@@ -12,7 +12,9 @@ const Administration: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNav
   const { user, t } = useAuth();
   const [activeTab, setActiveTab] = useState('console');
 
-  if (user?.role !== 'admin') {
+  const isAdmin = user?.role && ['admin', 'super_admin', 'product_manager', 'developer', 'editor', 'viewer', 'support'].includes(user.role);
+
+  if (!isAdmin) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-8">
         <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4">
@@ -41,7 +43,7 @@ const Administration: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNav
         <Tabs 
           options={[
             { id: 'console', label: 'Apps' },
-            { id: 'deployment', label: 'Despliegue' },
+            { id: 'deployment', label: t.deploymentTab || 'Despliegue' },
             { id: 'tech-roadmap', label: t.techRoadmap || 'Mapa de Ruta' },
             { id: 'roles', label: t.rolesTab || 'Roles y Permisos' },
             { id: 'api-keys', label: 'API Keys Globales' },

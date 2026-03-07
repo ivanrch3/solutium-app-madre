@@ -63,13 +63,22 @@ export interface CategoryTheme {
   accent: string | null;
 }
 export type NotificationType = 'success' | 'error' | 'info';
-export type UserRole = 'user' | 'admin' | 'guest';
+export type UserRole = 
+  | 'user' 
+  | 'admin'
+  | 'guest'
+  | 'super_admin' 
+  | 'product_manager' 
+  | 'developer' 
+  | 'editor' 
+  | 'viewer' 
+  | 'support';
 
 export interface TeamMember {
   id: string;
   name: string;
   email: string;
-  role: 'editor' | 'viewer' | 'super_admin' | 'support' | 'product_manager' | 'developer';
+  role: UserRole;
   avatarUrl?: string;
   status: 'active' | 'pending';
 }
