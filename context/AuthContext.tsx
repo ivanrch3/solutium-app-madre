@@ -22,7 +22,7 @@ interface AuthContextType {
   // Project Methods
   duplicateProject: (projectId: string) => void;
   deleteProject: (projectId: string) => void;
-  createProject: (name: string, industry?: string) => void;
+  createProject: (name: string, industry?: string, address?: string) => Promise<void>;
   switchProject: (projectId: string) => void;
   updateProject: (projectId: string, data: Partial<Project>) => void;
   toggleProjectMember: (projectId: string, memberId: string) => void;
@@ -138,22 +138,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             products: []
           }));
 
-          // If user has no projects (new user), create a default one locally for now
-          // In a real app, you might want to create this in Supabase via an edge function or here
-          if (mappedProjects.length === 0) {
-            mappedProjects = [{
-              id: crypto.randomUUID(),
-              name: 'Mi Primer Proyecto',
-              industry: 'Otro',
-              brandColors: ['#3b82f6', '#1d4ed8'],
-              socials: [],
-              installedAppIds: [],
-              assignedMemberIds: [],
-              createdAt: Date.now(),
-              products: []
-            }];
-          }
-
           const fullUser: UserProfile = {
             id: session.user.id,
             name: userFullName,
@@ -262,6 +246,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Real Supabase Login
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        await checkSession();
         showNotification('Sesión iniciada con éxito', 'success');
       } else {
         // Legacy/Mock Login for dev or Local Mode
@@ -312,7 +297,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, [getUserFromDb, language, saveUserToDb, showNotification, localMode]);
+  }, [getUserFromDb, language, saveUserToDb, showNotification, localMode, checkSession]);
 
   const register = useCallback(async (email: string, password: string, name: string) => {
     setIsLoading(true);
@@ -340,13 +325,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         showNotification('Cuenta creada con éxito. Por favor, verifica tu correo.', 'success');
         // We don't automatically log in if email verification is required, 
         // but Supabase often logs in automatically depending on settings.
+        await checkSession();
       }
     } catch (error: any) {
       showNotification(error.message || 'Error al crear la cuenta', 'error');
     } finally {
       setIsLoading(false);
     }
-  }, [localMode, login, showNotification]);
+  }, [localMode, login, showNotification, checkSession]);
 
   const loginWithGoogle = useCallback(async () => {
     setIsLoading(true);
@@ -560,31 +546,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [currentProject, language, saveUserToDb, showNotification]);
 
-  const createProject = useCallback((name: string, industry?: string) => {
+  const createProject = useCallback(async (name: string, industry?: string, address?: string) => {
+      if (!user) return;
+      
+      const newProjectId = crypto.randomUUID();
+      const masterProject = user.projects.find(p => p.id === 'admin-hq');
+      const brandColors = masterProject?.brandColors || [
+          SOLUTIUM_COLORS.green, 
+          SOLUTIUM_COLORS.violet, 
+          SOLUTIUM_COLORS.blue, 
+          SOLUTIUM_COLORS.deepGray, 
+          SOLUTIUM_COLORS.darkGray, 
+          SOLUTIUM_COLORS.lightGray
+      ];
+
+      const newProject: Project = {
+          id: newProjectId,
+          name,
+          industry,
+          address,
+          brandColors,
+          logoUrl: masterProject?.logoUrl,
+          imageMappings: masterProject?.imageMappings,
+          socials: [],
+          installedAppIds: [],
+          assignedMemberIds: [],
+          customers: [],
+          createdAt: Date.now()
+      };
+
+      if (!localMode) {
+          try {
+              const { error } = await supabase.from('projects').insert({
+                  id: newProjectId,
+                  owner_id: user.id,
+                  name,
+                  industry,
+                  address,
+                  brand_colors: brandColors,
+                  logo_url: masterProject?.logoUrl || null,
+                  contact_info: address ? { address } : {}
+              });
+              if (error) {
+                  console.error('Error creating project in Supabase:', error);
+                  showNotification('Error al crear el proyecto en el servidor', 'error');
+                  return;
+              }
+          } catch (err) {
+              console.error('Exception creating project:', err);
+          }
+      }
+
       setUser(prev => {
           if (!prev) return null;
-          const masterProject = prev.projects.find(p => p.id === 'admin-hq');
-          const newProject: Project = {
-              id: crypto.randomUUID(),
-              name,
-              industry,
-              brandColors: masterProject?.brandColors || [
-                  SOLUTIUM_COLORS.green, 
-                  SOLUTIUM_COLORS.violet, 
-                  SOLUTIUM_COLORS.blue, 
-                  SOLUTIUM_COLORS.deepGray, 
-                  SOLUTIUM_COLORS.darkGray, 
-                  SOLUTIUM_COLORS.lightGray
-              ],
-              logoUrl: masterProject?.logoUrl,
-              imageMappings: masterProject?.imageMappings,
-              socials: [],
-              installedAppIds: [],
-              assignedMemberIds: [],
-              customers: [],
-              createdAt: Date.now()
-          };
-
           const updatedProjects = [...prev.projects, newProject];
           const updatedUser = { ...prev, projects: updatedProjects };
           storageService.setUser(updatedUser);
@@ -596,7 +610,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           showNotification(translations[language].projectCreated, 'success');
           return updatedUser;
       });
-  }, [language, saveUserToDb, showNotification]);
+  }, [user, localMode, language, saveUserToDb, showNotification]);
 
   const addTeamMember = useCallback((name: string, email: string, role: 'editor' | 'viewer' | 'super_admin' | 'support' | 'product_manager' | 'developer') => {
       let success = false;
