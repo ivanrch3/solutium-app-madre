@@ -3,13 +3,27 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Helper to validate URL
+const isValidUrl = (url: string | undefined): boolean => {
+  if (!url) return false;
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 let client: SupabaseClient;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase URL or Anon Key missing. Authentication will be disabled.');
+// Check if variables are missing or invalid (e.g., "undefined" string)
+if (!supabaseUrl || !supabaseAnonKey || !isValidUrl(supabaseUrl) || supabaseUrl === 'undefined' || supabaseAnonKey === 'undefined') {
+  console.warn('⚠️ Supabase configuration is missing or invalid. Using mock client for offline/local mode.');
+  if (supabaseUrl && !isValidUrl(supabaseUrl)) {
+    console.error(`❌ Invalid Supabase URL: "${supabaseUrl}". Must be a valid HTTP/HTTPS URL.`);
+  }
   
   // Create a minimal mock client to prevent crashes
-  // This allows the app to run in "offline/local" mode
   client = {
     auth: {
       getSession: async () => ({ data: { session: null }, error: null }),
